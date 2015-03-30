@@ -213,9 +213,6 @@ void InputSystemHelper::AddDevice( Device* dev)
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed)
 {
-  // swap mouse to front if this mouse was used first
-  MakeThisMouseFirst( sender);
-
   if( !gInstance->mHandler )
     return;
   if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) ) 
@@ -226,9 +223,6 @@ void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPr
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx, int rely)
 {
-  // swap mouse to front if this mouse was used first
-  MakeThisMouseFirst( sender);
-
   if( !gInstance->mHandler )
     return;
   if( gInstance->mHandler->OnMouseMoved( sender, absx, absy) )
@@ -323,31 +317,37 @@ void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float v
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::MakeThisMouseFirst( Mouse* mouse)
 {
-  if( gInstance->mReorderMiceOnActivity && mouse != gInstance->mFirstMouse )
+  if( gInstance->mReorderMiceOnActivity )
   {
     gInstance->mReorderMiceOnActivity = false;
-    std::swap( mouse->mId, gInstance->mFirstMouse->mId);
-    std::swap( mouse->mCount, gInstance->mFirstMouse->mCount);
-    gInstance->mFirstMouse = mouse;
-    auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstMouse));
-    auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (mouse));
-    assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
-    std::swap( *fit, *mit);
-    // the sender mouse should now be the first mouse by any means, all channel mappings should adapt automatically
+    if( mouse != gInstance->mFirstMouse )
+    {
+      std::swap( mouse->mId, gInstance->mFirstMouse->mId);
+      std::swap( mouse->mCount, gInstance->mFirstMouse->mCount);
+      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstMouse));
+      auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (mouse));
+      assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
+      std::swap( *fit, *mit);
+      gInstance->mFirstMouse = mouse;
+      // the sender mouse should now be the first mouse by any means, all channel mappings should adapt automatically
+    }
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::MakeThisKeyboardFirst( Keyboard* keyboard)
 {
-  if( gInstance->mReorderKeyboardsOnActivity && keyboard != gInstance->mFirstKeyboard )
+  if( gInstance->mReorderKeyboardsOnActivity )
   {
     gInstance->mReorderKeyboardsOnActivity = false;
-    std::swap( keyboard->mId, gInstance->mFirstKeyboard->mId);
-    std::swap( keyboard->mCount, gInstance->mFirstKeyboard->mCount);
-    gInstance->mFirstKeyboard = keyboard;
-    auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstKeyboard));
-    auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (keyboard));
-    assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
-    std::swap( *fit, *mit);
+    if( keyboard != gInstance->mFirstKeyboard )
+    {
+      std::swap( keyboard->mId, gInstance->mFirstKeyboard->mId);
+      std::swap( keyboard->mCount, gInstance->mFirstKeyboard->mCount);
+      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstKeyboard));
+      auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (keyboard));
+      assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
+      std::swap( *fit, *mit);
+      gInstance->mFirstKeyboard = keyboard;
+    }
   }
 }

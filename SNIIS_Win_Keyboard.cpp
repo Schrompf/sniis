@@ -92,6 +92,9 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e)
     case VK_CLEAR: scanCode = !isE0 ? KC_NUMPAD5 : KC_NUMPAD5; break; // was isn VK_CLEAR?
   }
 
+  // any message counts as activity, so treat this mouse as primary if it's not decided, yet
+  InputSystemHelper::MakeThisKeyboardFirst( this);
+
   Set( scanCode, pressed);
   InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
 }

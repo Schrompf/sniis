@@ -14,6 +14,12 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   mState.absX = mState.absY = mState.absWheel = 0;
   mState.relX = mState.relY = mState.relWheel = 0;
   mState.buttons = mState.prevButtons = 0;
+
+  // read initial position, assume single mouse mode
+  POINT point;
+  GetCursorPos(&point);
+  ScreenToClient( mSystem->GetWindowHandle(), &point);
+  mState.absX = point.x; mState.absY = point.y;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -29,6 +35,9 @@ void WinMouse::ParseMessage( const RAWINPUT& e)
   // not a mouse or not our mouse - just a safety, such a message shouldn't even reach us
   assert( e.header.dwType == RIM_TYPEMOUSE && e.header.hDevice == mHandle );
   const RAWMOUSE& mouse = e.data.mouse;
+
+  // any message counts as activity, so treat this mouse as primary if it's not decided, yet
+  InputSystemHelper::MakeThisMouseFirst( this);
 
   // Mouse buttons - Raw Input only supports five
   if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) DoMouseClick( MB_Left, true);
@@ -104,6 +113,12 @@ void WinMouse::EndUpdate()
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::DoMouseClick( int mouseButton, bool isDown )
 {
+  // in single mouse mode, redirect click to main mouse
+  // actually: don't. It would only allow clicking with all mice the user has, which is an unlikely usecase IMO. But
+  // it opens a new range of state mixup when switching Single/Multi Mouse mode while a button is down. Isn't worth it.
+//  if( !mSystem->IsInMultiMouseMode() && mCount != 0 )
+//    return static_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseClick( mouseButton, isDown);
+
   if( isDown )
 	  mState.buttons |= 1 << mouseButton; 
   else

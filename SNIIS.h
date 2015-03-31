@@ -370,6 +370,9 @@ public:
 #if SNIIS_SYSTEM_WINDOWS
   /// on Windows, hand WM_INPUT messages to it from your message queue
   virtual void HandleWinMessage(uint32_t message, size_t lParam, size_t wParam) = 0;
+#elif SNIIS_SYSTEM_LINUX
+  /// Handles an XEvent - pass a pointer to the XEvent structure read by XNextEvent()
+  void HandleXEvent( void* xevent) override;
 #endif
 
   /// Returns all devices currently present

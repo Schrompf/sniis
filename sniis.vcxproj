@@ -22,6 +22,7 @@
     <ClInclude Include="SNIIS_C.h" />
     <ClInclude Include="SNIIS.h" />
     <ClInclude Include="SNIIS_Intern.h" />
+    <ClInclude Include="SNIIS_Linux.h" />
     <ClInclude Include="SNIIS_Win.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

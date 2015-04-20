@@ -10,10 +10,12 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <map>
 #include <ctime>
 #include <cstdint>
+#include <algorithm>
 
 /// -------------------------------------------------------------------------------------------------------------------
 #if defined(_WIN32) || defined(USE_WINE)
@@ -23,6 +25,8 @@
 #else
 #error Platform not implemented
 #endif
+
+#define SNIIS_UNUSED( a) (void) a
 
 namespace SNIIS
 {
@@ -174,7 +178,8 @@ enum KeyCode
   KC_WEBBACK = 0xEA,    // Web Back
   KC_MYCOMPUTER = 0xEB,    // My Computer
   KC_MAIL = 0xEC,    // Mail
-  KC_MEDIASELECT = 0xED     // Media Select
+  KC_MEDIASELECT = 0xED,  // Media Select
+  KC_FIRST_CUSTOM = 0x100 // custom keycodes not mapped to the above list start with this code
 };
 
 /// Mouse Button IDs
@@ -220,16 +225,16 @@ public:
 
   /// Query controls of that device
   virtual size_t GetNumButtons() const { return 0; }
-  virtual std::string GetButtonText(size_t idx) const { return std::string(); }
-  virtual size_t GetNumAxis() const { return 0; }
-  virtual std::string GetAxisText(size_t idx) const { return std::string(); }
+  virtual std::string GetButtonText(size_t idx) const { SNIIS_UNUSED( idx); return std::string(); }
+  virtual size_t GetNumAxes() const { return 0; }
+  virtual std::string GetAxisText(size_t idx) const { SNIIS_UNUSED( idx); return std::string(); }
 
   /// Query current state
-  virtual bool IsButtonDown(size_t idx) const { return false; }
-  virtual bool WasButtonPressed(size_t idx) const { return false; }
-  virtual bool WasButtonReleased(size_t idx) const { return false; }
-  virtual float GetAxisAbsolute(size_t idx) const { return 0.0f; }
-  virtual float GetAxisDifference(size_t idx) const { return 0.0f; }
+  virtual bool IsButtonDown(size_t idx) const { SNIIS_UNUSED( idx); return false; }
+  virtual bool WasButtonPressed(size_t idx) const { SNIIS_UNUSED( idx); return false; }
+  virtual bool WasButtonReleased(size_t idx) const { SNIIS_UNUSED( idx); return false; }
+  virtual float GetAxisAbsolute(size_t idx) const { SNIIS_UNUSED( idx); return 0.0f; }
+  virtual float GetAxisDifference(size_t idx) const { SNIIS_UNUSED( idx); return 0.0f; }
 };
 
 /// a mouse is an abstract input device
@@ -263,55 +268,56 @@ public:
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
-/// Source of an event - pair of DeviceID and ControlID
-struct EventSource
+/// Digital event channel - zero to multiple event sources connected to an digital input event which turns out either ON or OFF
+struct DigitalChannel
 {
-  size_t deviceId, ctrlId;
-  bool operator == (const EventSource& e) { return e.deviceId == deviceId && e.ctrlId == ctrlId; }
-};
-
-/// Base channel class - zero to multiple event sources connected to an input event
-struct BaseChannel
-{
-  /// ID
   size_t mId;
-  /// event sources bound to this channel
-  std::vector<EventSource> mEvents;
+  /// A source to trigger a digital channel is either digital or an analog source beyond a specific limit value.
+  /// In case it's an analog source, the digital channel is assumed to be ON if the analog source is above the positive
+  /// limit or below the negative limit value.
+  struct Source { size_t mDeviceId, mControlId; bool mIsAnalog; float mAnalogLimit; };
+  std::vector<Source> mSources;
 
-  size_t GetId() const { return mId; }
-  void AddRecord(size_t deviceId, size_t ctrlId)
-  {
-    EventSource evs{deviceId, ctrlId};
-    if( std::find(mEvents.begin(), mEvents.end(), evs) == mEvents.end() )
-      mEvents.push_back(evs);
-  }
-  void RemoveRecord(size_t deviceId, size_t ctrlId)
-  {
-    auto it = std::find(mEvents.begin(), mEvents.end(), EventSource{deviceId, ctrlId});
-    if( it != mEvents.end() )
-      mEvents.erase(it);
-  }
-};
-/// Digital event channel - zero to multiple event sources connected to an input event
-struct DigitalChannel : public BaseChannel
-{
   /// current state and change since last Update()
   bool mIsPressed, mIsModified;
 
-  DigitalChannel() { mIsPressed = mIsModified = false; }
+  DigitalChannel() { mId = SIZE_MAX; mIsPressed = mIsModified = false; }
+  size_t GetId() const { return mId; }
+  void AddDigitalSource( size_t pDeviceId, size_t pButtonId);
+  void AddAnalogSource( size_t pDeviceId, size_t pAxisId, float pLimit);
+  void RemoveDigitalSource( size_t pDeviceId, size_t pButtonId);
+  void RemoveAnalogSource( size_t pDeviceId, size_t pAxisId);
+  void ClearAllAssignments();
+
   bool IsOn() const { return mIsPressed; }
   bool WasSwitchedOn() const { return mIsPressed && mIsModified; }
   bool WasSwitchedOff() const { return !mIsPressed && mIsModified; }
   void Update() { mIsModified = false; }
 };
 
-/// Analog event channel - zero to multiple event sources connected to an input event
-struct AnalogChannel : public BaseChannel
+/// Analog event channel - zero to multiple event sources connected to an analog input event
+struct AnalogChannel
 {
+  size_t mId;
+  /// A source affecting an analog channel is analog, a digitalized analog source or a digital source, with digital
+  /// sources translating to a specific value if ON.
+  enum SourceType { Source_Analog, Source_Digital, Source_LimitedAnalog };
+  struct Source { size_t mDeviceId, mControlId; SourceType mType; float mDigitalAmountOrAnalogLimit; float mAnalogScale; };
+  std::vector<Source> mSources;
+
   /// current state and change since last Update()
   float mValue, mDiff;
 
-  AnalogChannel() { mValue = mDiff = 0.0f; }
+  AnalogChannel() { mId = SIZE_MAX; mValue = mDiff = 0.0f; }
+  size_t GetId() const { return mId; }
+  void AddAnalogSource( size_t pDeviceId, size_t pAxisId);
+  void AddDigitalSource( size_t pDeviceId, size_t pButtonId, float pTranslatedValue);
+  void AddDigitalizedAnalogSource( size_t pDeviceId, size_t pAxisId, float pScale, float pLimitValue);
+  void RemoveAnalogSource( size_t pDeviceId, size_t pAxisId);
+  void RemoveDigitalSource( size_t pDeviceId, size_t pButtonId);
+  void RemoveDigitalizedAnalogSource( size_t pDeviceId, size_t pAxisId);
+  void ClearAllAssignments();
+
   float GetAbsolute() const { return mValue; }
   float GetRelative() const { return mDiff; }
   void Update() { mDiff = 0.0f; }
@@ -339,8 +345,8 @@ public:
 
   virtual bool OnUnicode(Keyboard*, size_t) { return false; }
 
-  virtual bool OnDigitalEvent(const EventSource&, bool) { return false; }
-  virtual bool OnAnalogEvent(const EventSource&, float) { return false; }
+  virtual bool OnDigitalEvent(Device*, size_t, bool) { return false; }
+  virtual bool OnAnalogEvent(Device*, size_t, float) { return false; }
   virtual void OnDigitalChannel(const DigitalChannel&) { }
   virtual void OnAnalogChannel(const AnalogChannel &) { }
 };
@@ -372,7 +378,7 @@ public:
   virtual void HandleWinMessage(uint32_t message, size_t lParam, size_t wParam) = 0;
 #elif SNIIS_SYSTEM_LINUX
   /// Handles an XEvent - pass a pointer to the XEvent structure read by XNextEvent()
-  void HandleXEvent( void* xevent) override;
+//  virtual void HandleXEvent( void* xevent);
 #endif
 
   /// Returns all devices currently present

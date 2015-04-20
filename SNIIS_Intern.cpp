@@ -8,7 +8,7 @@
 using namespace SNIIS;
 
 /// global Instance of the Input System if initialized, or Null
-namespace SNIIS 
+namespace SNIIS
 {
   InputSystem* gInstance = nullptr;
 }
@@ -167,7 +167,7 @@ void InputSystem::ClearChannelAssignments()
       if( gInstance->mHandler )
         gInstance->mHandler->OnDigitalChannel( p.second);
     }
-    p.second.mEvents.clear();
+    p.second.mSources.clear();
   }
 
   // and all analog channels
@@ -179,8 +179,117 @@ void InputSystem::ClearChannelAssignments()
       if( gInstance->mHandler )
         gInstance->mHandler->OnAnalogChannel( p.second);
     }
-    p.second.mEvents.clear();
+    p.second.mSources.clear();
   }
+}
+
+// ********************************************************************************************************************
+// --------------------------------------------------------------------------------------------------------------------
+void DigitalChannel::AddDigitalSource( size_t pDeviceId, size_t pButtonId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pButtonId && !s.mIsAnalog; });
+  if( it != mSources.end() )
+    return;
+  mSources.push_back( DigitalChannel::Source{ pDeviceId, pButtonId, false, 0.0f });
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void DigitalChannel::AddAnalogSource( size_t pDeviceId, size_t pAxisId, float pLimit)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mIsAnalog; });
+  if( it != mSources.end() )
+    return;
+  mSources.push_back( DigitalChannel::Source{ pDeviceId, pAxisId, true, pLimit });
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void DigitalChannel::RemoveDigitalSource( size_t pDeviceId, size_t pButtonId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pButtonId && !s.mIsAnalog; });
+  if( it != mSources.end() )
+    mSources.erase( it);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void DigitalChannel::RemoveAnalogSource( size_t pDeviceId, size_t pAxisId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mIsAnalog; });
+  if( it != mSources.end() )
+    mSources.erase( it);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void DigitalChannel::ClearAllAssignments()
+{
+  mSources.clear();
+}
+
+// ********************************************************************************************************************
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::AddAnalogSource( size_t pDeviceId, size_t pAxisId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mType == Source_Analog; });
+  if( it != mSources.end() )
+    return;
+  mSources.push_back( AnalogChannel::Source{ pDeviceId, pAxisId, Source_Analog, 0.0f, 0.0f });
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::AddDigitalSource( size_t pDeviceId, size_t pButtonId, float pTranslatedValue)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pButtonId && s.mType == Source_Digital; });
+  if( it != mSources.end() )
+    return;
+  mSources.push_back( AnalogChannel::Source{ pDeviceId, pButtonId, Source_Digital, pTranslatedValue, 0.0f });
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::AddDigitalizedAnalogSource(size_t pDeviceId, size_t pAxisId, float pScale, float pLimitValue)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mType == Source_LimitedAnalog; });
+  if( it != mSources.end() )
+    return;
+  mSources.push_back( AnalogChannel::Source{ pDeviceId, pAxisId, Source_LimitedAnalog, pLimitValue, pScale });
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::RemoveAnalogSource( size_t pDeviceId, size_t pAxisId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mType == Source_Analog; });
+  if( it != mSources.end() )
+    mSources.erase( it);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::RemoveDigitalSource( size_t pDeviceId, size_t pButtonId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pButtonId && s.mType == Source_Digital; });
+  if( it != mSources.end() )
+    mSources.erase( it);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::RemoveDigitalizedAnalogSource( size_t pDeviceId, size_t pAxisId)
+{
+  auto it = std::find_if( mSources.begin(), mSources.end(),
+    [=](const Source& s) { return s.mDeviceId == pDeviceId && s.mControlId == pAxisId && s.mType == Source_LimitedAnalog; });
+  if( it != mSources.end() )
+    mSources.erase( it);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void AnalogChannel::ClearAllAssignments()
+{
+  mSources.clear();
 }
 
 // ********************************************************************************************************************
@@ -215,7 +324,7 @@ void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPr
 {
   if( !gInstance->mHandler )
     return;
-  if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) ) 
+  if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
     return;
   DoDigitalEvent( sender, btnIndex, isPressed);
 }
@@ -236,9 +345,25 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
 {
+  // store for key repetition
+  if( isPressed && gInstance->mKeyRepeatCfg.enable )
+  {
+    gInstance->mKeyRepeatState.mKeyCode = kc;
+    gInstance->mKeyRepeatState.mSender = sender;
+    gInstance->mKeyRepeatState.mUnicodeChar = unicode;
+    gInstance->mKeyRepeatState.mTimeTillRepeat = gInstance->mKeyRepeatCfg.delay;
+  }
+  else if( gInstance->mKeyRepeatState.mKeyCode == kc )
+  {
+    gInstance->mKeyRepeatState.mKeyCode = KC_UNASSIGNED;
+    gInstance->mKeyRepeatState.mSender = nullptr;
+    gInstance->mKeyRepeatState.mUnicodeChar = 0;
+    gInstance->mKeyRepeatState.mTimeTillRepeat = 0.0f;
+  }
+
   if( !gInstance->mHandler )
     return;
-  if( gInstance->mHandler->OnKey( sender, kc, isPressed) ) 
+  if( gInstance->mHandler->OnKey( sender, kc, isPressed) )
     return;
   if( isPressed && unicode && gInstance->mHandler->OnUnicode( sender, unicode) )
     return;
@@ -250,7 +375,7 @@ void InputSystemHelper::DoJoystickAxis( Joystick* sender, size_t axisIndex, floa
 {
   if( !gInstance->mHandler )
     return;
-  if( gInstance->mHandler->OnJoystickAxis( sender, axisIndex, value) ) 
+  if( gInstance->mHandler->OnJoystickAxis( sender, axisIndex, value) )
     return;
   DoAnalogEvent( sender, axisIndex, value);
 }
@@ -260,58 +385,102 @@ void InputSystemHelper::DoJoystickButton( Joystick* sender, size_t btnIndex, boo
 {
   if( !gInstance->mHandler )
     return;
-  if( gInstance->mHandler->OnJoystickButton( sender, btnIndex, isPressed) ) 
+  if( gInstance->mHandler->OnJoystickButton( sender, btnIndex, isPressed) )
     return;
   DoDigitalEvent( sender, btnIndex, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed)
+void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool isAnalog)
 {
-  auto evs = EventSource{ sender->GetId(), btnIndex };
-  if( gInstance->mHandler->OnDigitalEvent( evs, isPressed) ) 
-    return;
-
+  // update digital channels using this as a source
   for( auto& ch : gInstance->mDigitalChannels )
   {
     auto& dch = ch.second;
-    if( std::find( dch.mEvents.begin(), dch.mEvents.end(), evs) != dch.mEvents.end() )
+    auto it = std::find_if( dch.mSources.begin(), dch.mSources.end(),
+      [=](const DigitalChannel::Source& s) { return s.mDeviceId == sender->GetId() && s.mControlId == ctrlIndex && s.mIsAnalog == isAnalog; });
+
+    if( it != dch.mSources.end() )
     {
-      // derive new state of that channel
+      // derive new state of that channel by combining the states of all sources
       bool wasPressed = dch.mIsPressed;
       dch.mIsPressed = false;
-      for( auto e : dch.mEvents )
-        dch.mIsPressed = dch.mIsPressed || gInstance->mDevices[e.deviceId]->IsButtonDown( e.ctrlId);
+      for( const auto& s : dch.mSources )
+      {
+        if( s.mIsAnalog )
+        {
+          float v = gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+          dch.mIsPressed = (s.mAnalogLimit < 0.0f ? (v < s.mAnalogLimit) : (v > s.mAnalogLimit));
+        } else
+        {
+          dch.mIsPressed = dch.mIsPressed || gInstance->mDevices[s.mDeviceId]->IsButtonDown( s.mControlId);
+        }
+      }
+
       dch.mIsModified = (dch.mIsPressed != wasPressed);
       if( dch.mIsModified )
         gInstance->mHandler->OnDigitalChannel( dch);
     }
   }
+
+  // and update analog channels using this as an input
+  for( auto& ch : gInstance->mAnalogChannels )
+  {
+    // style guides, take cover. It's getting ugly.
+    auto& ach = ch.second;
+    auto it = std::find_if( ach.mSources.begin(), ach.mSources.end(),
+      [=](const AnalogChannel::Source& s) { return s.mDeviceId == sender->GetId() && s.mControlId == ctrlIndex
+          && ((isAnalog && (s.mType == AnalogChannel::Source_Analog || s.mType == AnalogChannel::Source_LimitedAnalog))
+              || (!isAnalog && s.mType == AnalogChannel::Source_Digital)); });
+
+    if( it != ach.mSources.end() )
+    {
+      // accumulate new state of that channel
+      float prevValue = ach.mValue;
+      ach.mValue = 0.0f;
+      for( const auto& s : ach.mSources )
+      {
+        switch( s.mType )
+        {
+          case AnalogChannel::Source_Digital:
+            ach.mValue += gInstance->mDevices[s.mDeviceId]->IsButtonDown( s.mControlId) ? s.mDigitalAmountOrAnalogLimit : 0.0f;
+            break;
+          case AnalogChannel::Source_Analog:
+            ach.mValue += gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+            break;
+          case AnalogChannel::Source_LimitedAnalog:
+          {
+            float v = gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+            float l = s.mDigitalAmountOrAnalogLimit;
+            bool isActive = (l != 0.0f ? (l < 0.0f ? (v < l) : (v > l)) : true);
+            ach.mValue += isActive ? v * s.mAnalogScale : 0.0f;
+            break;
+          }
+        }
+      }
+      ach.mDiff += ach.mValue - prevValue;
+      if( ach.mValue != prevValue )
+        gInstance->mHandler->OnAnalogChannel( ach);
+    }
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed)
+{
+  if( gInstance->mHandler->OnDigitalEvent( sender, btnIndex, isPressed) )
+    return;
+
+  UpdateChannels( sender, btnIndex, false);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float value)
 {
-  auto evs = EventSource{ sender->GetId(), axisIndex };
-  if( gInstance->mHandler->OnAnalogEvent( evs, value) ) 
+  if( gInstance->mHandler->OnAnalogEvent( sender, axisIndex, value) )
     return;
 
-  for( auto& ch : gInstance->mAnalogChannels )
-  {
-    auto& ach = ch.second;
-    if( std::find( ach.mEvents.begin(), ach.mEvents.end(), evs) != ach.mEvents.end() )
-    {
-      // accumulate new state of that channel
-      float prevValue = ach.mValue;
-      ach.mValue = 0.0f;
-      for( auto e : ach.mEvents )
-        ach.mValue += gInstance->mDevices[e.deviceId]->GetAxisAbsolute( e.ctrlId);
-//      ach.mValue = std::min( 1.0f, std::max( -1.0f, ach.mValue));
-      ach.mDiff = ach.mValue - prevValue;
-      if( ach.mDiff != 0.0f )
-        gInstance->mHandler->OnAnalogChannel( ach);
-    }
-  }
+  UpdateChannels( sender, axisIndex, true);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

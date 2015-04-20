@@ -22,20 +22,20 @@ WinInput::WinInput( HWND wnd)
   mKeyboard = nullptr;
 
 	if( IsWindow(hWnd) == 0 )
-		throw std::exception( "HWND is not valid");
+		throw std::runtime_error( "HWND is not valid");
 
 	HINSTANCE hInst = GetModuleHandle(0);
 
 	//Create the device
 	HRESULT hr = DirectInput8Create( hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (VOID**)&mDirectInput, nullptr );
   if (FAILED(hr))	
-		throw std::exception( "Unable to init DirectX8 Input");
+		throw std::runtime_error( "Unable to init DirectX8 Input");
 
   // create and configure a mouse and keyboard to ask for system control names
   if( FAILED(mDirectInput->CreateDevice(GUID_SysKeyboard, &mKeyboard, nullptr)) )
-    throw std::exception( "Could not init default keyboard");
+    throw std::runtime_error( "Could not init default keyboard");
   if( FAILED(mKeyboard->SetDataFormat(&c_dfDIKeyboard)) )
-    throw std::exception( "Keyboard format error");
+    throw std::runtime_error( "Keyboard format error");
 
 	EnumerateDevices();
   CheckXInputDevices();
@@ -65,12 +65,12 @@ void WinInput::EnumerateDevices()
   uint32_t deviceCount = 0;
   uint32_t erg = GetRawInputDeviceList( nullptr, &deviceCount, sizeof( RAWINPUTDEVICELIST));
   if( erg == UINT32_MAX )
-    throw std::exception( "unable to get device count");
+    throw std::runtime_error( "unable to get device count");
 
   std::vector<RAWINPUTDEVICELIST> devices( deviceCount);
   erg = GetRawInputDeviceList( devices.data(), &deviceCount, sizeof( RAWINPUTDEVICELIST));
   if( erg == UINT32_MAX )
-    throw std::exception( "unable to retrieve device list");
+    throw std::runtime_error( "unable to retrieve device list");
 
   for( size_t a = 0; a < devices.size(); ++a )
   {
@@ -256,7 +256,7 @@ void WinInput::RegisterForRawInput()
   ids[2].dwFlags = 0;
 
   if( !RegisterRawInputDevices( &ids[0], 3, sizeof( RAWINPUTDEVICE)) )
-    throw std::exception( "failed to register for input messages");
+    throw std::runtime_error( "failed to register for input messages");
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -332,7 +332,7 @@ void WinInput::EndUpdate()
 bool InputSystem::Initialize(void* pInitArg)
 {
   if( gInstance )
-    throw std::exception( "Input already initialized");
+    throw std::runtime_error( "Input already initialized");
 
   try 
   {

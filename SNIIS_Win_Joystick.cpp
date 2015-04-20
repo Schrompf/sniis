@@ -12,8 +12,8 @@ using namespace SNIIS;
 
 static const size_t JOYSTICK_DX_BUFFERSIZE = 64;
 static const int MIN_AXIS = -32768, MAX_AXIS = 32767;
-static const size_t XINPUT_TRANSLATED_BUTTON_COUNT = 16;
-static const size_t XINPUT_TRANSLATED_AXIS_COUNT = 6;
+static const size_t XINPUT_TRANSLATED_BUTTON_COUNT = 13;
+static const size_t XINPUT_TRANSLATED_AXIS_COUNT = 8;
 
 // --------------------------------------------------------------------------------------------------------------------
 WinJoystick::WinJoystick( WinInput* pSystem, size_t pId, IDirectInput8* pDI, GUID pGuidInstance, GUID pGuidProduct)
@@ -22,7 +22,7 @@ WinJoystick::WinJoystick( WinInput* pSystem, size_t pId, IDirectInput8* pDI, GUI
   mXInputPadIndex = SIZE_MAX;
   mNumRealButtons = mNumButtons = mNumAxes = 0;
   memset( &mState, 0, sizeof( mState));
-  
+
   DIPROPDWORD dipdw;
   dipdw.diph.dwSize       = sizeof(DIPROPDWORD);
   dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
@@ -31,21 +31,21 @@ WinJoystick::WinJoystick( WinInput* pSystem, size_t pId, IDirectInput8* pDI, GUI
   dipdw.dwData            = JOYSTICK_DX_BUFFERSIZE;
 
   if( FAILED( mDirectInput->CreateDevice( mGuidInstance, &mJoystick, NULL)) )
-    throw std::exception( "Could not initialize controller device");
+    throw std::runtime_error( "Could not initialize controller device");
 
   if( FAILED( mJoystick->SetDataFormat( &c_dfDIJoystick2)) )
-    throw std::exception( "Controller data format error");
+    throw std::runtime_error( "Controller data format error");
 
   if( FAILED( mJoystick->SetCooperativeLevel( mSystem->GetWindowHandle(), DISCL_FOREGROUND | DISCL_EXCLUSIVE)) )
-    throw std::exception( "Controller failed to set cooperation level");
+    throw std::runtime_error( "Controller failed to set cooperation level");
 
   if( FAILED( mJoystick->SetProperty( DIPROP_BUFFERSIZE, &dipdw.diph)) )
-    throw std::exception( "Controller failed to set buffer size property" );
+    throw std::runtime_error( "Controller failed to set buffer size property" );
 
   // Get joystick capabilities.
   mDIJoyCaps.dwSize = sizeof(DIDEVCAPS);
   if( FAILED( mJoystick->GetCapabilities( &mDIJoyCaps)) )
-    throw std::exception( "Controller failed to get capabilities");
+    throw std::runtime_error( "Controller failed to get capabilities");
 
   // TODO: handle POVs, maybe as two axes?
   //mPOVs = (short)mDIJoyCaps.dwPOVs;
@@ -78,12 +78,17 @@ void WinJoystick::StartUpdate()
     //Sticks and triggers
     mState.axes[0] = std::max( -1.0f, float( -inputState.Gamepad.sThumbLY) / 32767.0f);
     mState.axes[1] = std::max( -1.0f, float( inputState.Gamepad.sThumbLX) / 32767.0f);
-    mState.axes[2] = std::max( -1.0f, float( -inputState.Gamepad.sThumbRY) / 32767.0f);
-    mState.axes[3] = std::max( -1.0f, float( inputState.Gamepad.sThumbRX) / 32767.0f);
-    mState.axes[4] = std::max( -1.0f, float( inputState.Gamepad.bLeftTrigger) / 127.0f);
+    mState.axes[2] = std::max( -1.0f, float( inputState.Gamepad.bLeftTrigger) / 127.0f);
+    mState.axes[3] = std::max( -1.0f, float( -inputState.Gamepad.sThumbRY) / 32767.0f);
+    mState.axes[4] = std::max( -1.0f, float( inputState.Gamepad.sThumbRX) / 32767.0f);
     mState.axes[5] = std::max( -1.0f, float( inputState.Gamepad.bRightTrigger) / 127.0f);
+    mState.axes[6] = ((inputState.Gamepad.wButtons & ) ? -1.0f : 0.0f)
+        + ((inputState.Gamepad.wButtons & ) ? 1.0f : 0.0f);
+    mState.axes[7] = ((inputState.Gamepad.wButtons & ) ? -1.0f : 0.0f)
+        + ((inputState.Gamepad.wButtons & ) ? 1.0f : 0.0f);
 
-    // Buttons
+    // Buttons, except the lowest four which are the DPad - we map those to axis 6 and 7 to
+    // match the axes reported by the USB interface
     mState.buttons = inputState.Gamepad.wButtons;
   }
   else
@@ -133,9 +138,9 @@ void WinJoystick::StartUpdate()
             mState.buttons = (mState.buttons & (UINT64_MAX ^ (1ull << btnidx))) | (uint64_t((diBuff[i].dwData >> 7) & 1) << btnidx);
           }
           else if( ((diBuff[i].uAppData >> 16)&0xffff) == 0x1313 )
-          {	
+          {
             // if it was nothing else, might be axis enumerated earlier (determined by magic number)
-            size_t axis = (0x0000FFFF & diBuff[i].uAppData); 
+            size_t axis = (0x0000FFFF & diBuff[i].uAppData);
             if( axis < mNumAxes )
               mState.axes[axis] = float( diBuff[i].dwData + MIN_AXIS) / float( MAX_AXIS - MIN_AXIS);
           }
@@ -173,9 +178,9 @@ void WinJoystick::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void WinJoystick::SetXInput( size_t pXIndex) 
-{ 
-  mXInputPadIndex = pXIndex; 
+void WinJoystick::SetXInput( size_t pXIndex)
+{
+  mXInputPadIndex = pXIndex;
   mNumRealButtons = XINPUT_TRANSLATED_BUTTON_COUNT;
   mNumAxes = XINPUT_TRANSLATED_AXIS_COUNT;
   mNumButtons = mNumRealButtons + 2*mNumAxes;
@@ -212,7 +217,7 @@ int CALLBACK WinJoystick::DIEnumDeviceObjectsCallback(LPCDIDEVICEOBJECTINSTANCE 
   diprg.lMax              = MAX_AXIS;
 
   if( FAILED( _this->mJoystick->SetProperty( DIPROP_RANGE, &diprg.diph)) )
-    throw std::exception( "Controller failed to set min/max range property");
+    throw std::runtime_error( "Controller failed to set min/max range property");
 
   return DIENUM_CONTINUE;
 }

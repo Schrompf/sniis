@@ -11,6 +11,7 @@
 
 #include <unistd.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/XInput2.h>
 
 
 class LinuxMouse;
@@ -23,7 +24,12 @@ class LinuxInput : public SNIIS::InputSystem
 {
   /// Window and Display
 	Window mWindow;
-	Display* mDisplay;
+  Display* mDisplay;
+  /// XInput2 extension opcode
+  int mXiOpcode;
+  /// Devices by DeviceID
+  std::map<int, LinuxMouse*> mMiceById;
+  std::map<int, LinuxKeyboard*> mKeyboardsById;
 
 public:
   /// Constructor
@@ -34,11 +40,11 @@ public:
   /// Starts the update, to be called before handling system messages
   void StartUpdate() override;
   /// Handles an XEvent - pass a pointer to the XEvent structure read by XNextEvent()
-  void HandleXEvent( void* xevent) override;
+//  void HandleXEvent( void* xevent) override;
   /// Ends the update, to be called after handling system messages
   void EndUpdate() override;
 
-  HWND GetWindowHandle() const { return hWnd; }
+  Display* GetDisplay() const { return mDisplay; }
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -46,22 +52,27 @@ public:
 class LinuxMouse : public SNIIS::Mouse
 {
   LinuxInput* mSystem;
-  struct State 
+  int mDeviceId;
+  struct Button { Atom label; };
+  std::vector<Button> mButtons;
+  struct Axis { Atom label; double min, max; double value, prevValue; bool isAbsolute; };
+  std::vector<Axis> mAxes;
+  struct State
   {
-    int absX, absY, absWheel, relX, relY, relWheel;
+    int absWheel, relWheel;
     uint32_t buttons, prevButtons;
   } mState;
 
 public:
-  LinuxMouse( WinInput* pSystem, size_t pId);
+  LinuxMouse( LinuxInput* pSystem, size_t pId, const XIDeviceInfo& pDeviceInfo);
 
   void StartUpdate();
-  void HandleXEvent( const XEvent& ev) override;
+  void HandleEvent( const XIRawEvent& ev);
   void EndUpdate();
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
-  size_t GetNumAxis() const override;
+  size_t GetNumAxes() const override;
   std::string GetAxisText( size_t idx) const override;
   bool IsButtonDown( size_t idx) const override;
   bool WasButtonPressed( size_t idx) const override;
@@ -80,18 +91,17 @@ protected:
 /// Linux keyboard, aswell fed by XEvents
 class LinuxKeyboard : public SNIIS::Keyboard
 {
-  static const size_t NumKeys = 256;
   LinuxInput* mSystem;
-	uint64_t mState[NumKeys/64], mPrevState[NumKeys/64]; ///< current and previous keystate
-
-  /// constant table to map linux key codes to our key codes
-  static const SNIIS::KeyCode sKeyTable[256];
+  int mDeviceId;
+  size_t mNumKeys;
+  std::vector<uint32_t> mExtraButtons;
+	std::vector<uint64_t> mState, mPrevState; ///< current and previous keystate
 
 public:
-  LinuxKeyboard( WinInput* pSystem, size_t pId);
+  LinuxKeyboard(LinuxInput* pSystem, size_t pId, const XIDeviceInfo& pDeviceInfo);
 
   void StartUpdate();
-  void HandleXEvent( const XEvent& ev) override;
+  void HandleEvent( const XIRawEvent& ev);
   void EndUpdate();
 
   size_t GetNumButtons() const override;
@@ -110,22 +120,25 @@ protected:
 /// Linux joystick
 class LinuxJoystick : public SNIIS::Joystick
 {
-  WinInput* mSystem;
-  int mDeviceId;
-  size_t mNumRealButtons, mNumButtons, mNumAxes;
+  LinuxInput* mSystem;
+  int mFileDesc;
+  struct Axis { size_t idx; bool isAbsolute; int32_t min, max, flat; };
+  std::vector<Axis> mAxes;
+  struct Button { size_t idx; };
+  std::vector<Button> mButtons;
   struct State {
     uint64_t buttons, prevButtons;
     float axes[16], diffs[16];
   } mState;
 
 public:
-  LinuxJoystick( WinInput* pSystem, size_t pId, int pDeviceId);
+  LinuxJoystick( LinuxInput* pSystem, size_t pId, int pFileDesc);
 
   void StartUpdate();
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
-  size_t GetNumAxis() const override;
+  size_t GetNumAxes() const override;
   std::string GetAxisText( size_t idx) const override;
 
   bool IsButtonDown( size_t idx) const override;

@@ -24,5 +24,6 @@ namespace SNIIS
     static void DoAnalogEvent( Device* sender, size_t axisIndex, float value);
     static void MakeThisMouseFirst( Mouse* mouse);
     static void MakeThisKeyboardFirst( Keyboard* keyboard);
+    static void UpdateChannels( Device* sender, size_t ctrlIndex, bool isAnalog);
   };
 }

@@ -13,6 +13,10 @@
   <ItemGroup>
     <ClCompile Include="SNIIS_C.cpp" />
     <ClCompile Include="SNIIS_Intern.cpp" />
+    <ClCompile Include="SNIIS_Linux.cpp" />
+    <ClCompile Include="SNIIS_Linux_Joystick.cpp" />
+    <ClCompile Include="SNIIS_Linux_Keyboard.cpp" />
+    <ClCompile Include="SNIIS_Linux_Mouse.cpp" />
     <ClCompile Include="SNIIS_Win.cpp" />
     <ClCompile Include="SNIIS_Win_Joystick.cpp" />
     <ClCompile Include="SNIIS_Win_Keyboard.cpp" />

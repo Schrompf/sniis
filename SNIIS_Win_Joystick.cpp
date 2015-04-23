@@ -82,14 +82,24 @@ void WinJoystick::StartUpdate()
     mState.axes[3] = std::max( -1.0f, float( -inputState.Gamepad.sThumbRY) / 32767.0f);
     mState.axes[4] = std::max( -1.0f, float( inputState.Gamepad.sThumbRX) / 32767.0f);
     mState.axes[5] = std::max( -1.0f, float( inputState.Gamepad.bRightTrigger) / 127.0f);
-    mState.axes[6] = ((inputState.Gamepad.wButtons & ) ? -1.0f : 0.0f)
-        + ((inputState.Gamepad.wButtons & ) ? 1.0f : 0.0f);
-    mState.axes[7] = ((inputState.Gamepad.wButtons & ) ? -1.0f : 0.0f)
-        + ((inputState.Gamepad.wButtons & ) ? 1.0f : 0.0f);
+    mState.axes[6] = ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) ? -1.0f : 0.0f)
+        + ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) ? 1.0f : 0.0f);
+    mState.axes[7] = ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) ? -1.0f : 0.0f)
+        + ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) ? 1.0f : 0.0f);
 
     // Buttons, except the lowest four which are the DPad - we map those to axis 6 and 7 to
     // match the axes reported by the USB interface
-    mState.buttons = inputState.Gamepad.wButtons;
+	mState.buttons  = (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_A) ? 0x0001 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_B) ? 0x0002 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_X) ? 0x0004 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) ? 0x0008 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) ? 0x0010 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) ? 0x0020 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_START) ? 0x0040 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) ? 0x0080 : 0;
+//	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DAT_CENTER_THINGY) ? 0x0100 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) ? 0x0200 : 0;
+	mState.buttons |= (inputState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) ? 0x0400 : 0;
   }
   else
   {
@@ -233,7 +243,7 @@ std::string WinJoystick::GetButtonText( size_t idx) const
   return "";
 }
 // --------------------------------------------------------------------------------------------------------------------
-size_t WinJoystick::GetNumAxis() const
+size_t WinJoystick::GetNumAxes() const
 {
   return mNumAxes;
 }

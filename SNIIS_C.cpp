@@ -5,11 +5,11 @@
 #include "SNIIS.h"
 #include "SNIIS_C.h"
 
-// Creates the global input instance. Returns non-zero if successful or 0 on error
+// Creates the global input instance. Returns zero if successful or non-zero on error
 extern "C" int SNIIS_Initialize( void* pInitArgs)
 {
   bool success = SNIIS::InputSystem::Initialize( pInitArgs);
-  return success ? 0 : 1;
+  return success ? 1 : 0;
 }
 
 // Shuts down the global input instance

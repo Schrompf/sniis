@@ -80,7 +80,7 @@ public:
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
-  size_t GetNumAxis() const override;
+  size_t GetNumAxes() const override;
   std::string GetAxisText( size_t idx) const override;
   bool IsButtonDown( size_t idx) const override;
   bool WasButtonPressed( size_t idx) const override;
@@ -151,7 +151,7 @@ public:
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
-  size_t GetNumAxis() const override;
+  size_t GetNumAxes() const override;
   std::string GetAxisText( size_t idx) const override;
 
   bool IsButtonDown( size_t idx) const override;

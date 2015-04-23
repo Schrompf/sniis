@@ -8,8 +8,6 @@
 #include <cstring>
 #include <X11/keysym.h>
 
-#include "../Traumklassen/TraumBasis.h"
-
 using namespace SNIIS;
 
 /// constant table to map linux key codes to our key codes
@@ -999,7 +997,6 @@ LinuxKeyboard::LinuxKeyboard( LinuxInput* pSystem, size_t pId, const XIDeviceInf
             ourkc = (SNIIS::KeyCode) (KC_FIRST_CUSTOM + mExtraButtons.size());
             mExtraButtons.push_back(kc);
           }
-//          Traum::Konsole.Log( "Keyboard %d: %s kc 0x%04x, ks 0x%04x, ourkc %d", mDeviceId, ourkc >= KC_FIRST_CUSTOM ? "extra" : "", kc, ks, ourkc);
           mNumKeys = std::max( mNumKeys, size_t( ourkc + 1));
         }
         break;
@@ -1047,7 +1044,6 @@ void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
         uint32_t sks = XKeycodeToKeysym( mSystem->GetDisplay(), key, shiftlevel);
         uint32_t unicode = ConvertKeysymToUnicode( sks);
 
-        Traum::Konsole.Log( "Taste %d %s", kc, isPressed ? "gedrückt" : "losgelassen");
         Set( kc, isPressed);
         InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
       }

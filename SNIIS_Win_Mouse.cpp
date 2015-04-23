@@ -138,7 +138,7 @@ std::string WinMouse::GetButtonText( size_t idx) const
   return ""; // TODO: query DirectInput for names?
 }
 // --------------------------------------------------------------------------------------------------------------------
-size_t WinMouse::GetNumAxis() const
+size_t WinMouse::GetNumAxes() const
 {
   return 2; // two axis: axis0 is horizontal mouse pos, axis1 is vertical mouse pos.
 }

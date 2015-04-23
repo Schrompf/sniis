@@ -79,7 +79,6 @@ void WinInput::EnumerateDevices()
     std::string name( 256, 0);
     uint32_t nameSize = (uint32_t) name.size();
     erg = GetRawInputDeviceInfo( dev.hDevice, RIDI_DEVICENAME, &name[0], &nameSize);
-//      Traum::Konsole.Log( "Eingabegeraet %d: typ %d, id %d, name \"%s\"", a, dev.dwType, (uint32_t) dev.hDevice, name.c_str());
 
     RID_DEVICE_INFO info;
     uint32_t infoSize = sizeof( RID_DEVICE_INFO);
@@ -88,7 +87,6 @@ void WinInput::EnumerateDevices()
     switch( dev.dwType )
     {
       case RIM_TYPEMOUSE: 
-//          Traum::Konsole.Log( "Maus: Id %d, %d Tasten, %d Abtastfrequenz", info.mouse.dwId, info.mouse.dwNumberOfButtons, info.mouse.dwSampleRate);
         // on many systems there are ghost mice for Remote Desktop programs. We filter those out.
         if( name.find( "RDP_") == std::string::npos )
         {
@@ -98,7 +96,6 @@ void WinInput::EnumerateDevices()
         }
         break;
       case RIM_TYPEKEYBOARD: 
-//          Traum::Konsole.Log( "Tastatur: Typ %d|%d, %d Tasten, %d Anzeigen", info.keyboard.dwType, info.keyboard.dwSubType, info.keyboard.dwNumberOfKeysTotal, info.keyboard.dwNumberOfIndicators);
         // there are also ghost keyboards from Remote desktop programs
         if( name.find( "RDP_") == std::string::npos )
         {
@@ -108,7 +105,6 @@ void WinInput::EnumerateDevices()
         }
         break;
       case RIM_TYPEHID: 
-//          Traum::Konsole.Log( "HID: Produkt %d, Vendor %d, Usage %d|%d", info.hid.dwProductId, info.hid.dwVendorId, (uint32_t) info.hid.usUsage, (uint32_t) info.hid.usUsagePage);
         // laut USB-Usage-Spec ist Page 1 (Generic Desktop Page), Usage 4 (Joysticks) und 5 (GamePads) unser Ziel
 //        if( info.hid.usUsagePage == 1 && (info.hid.usUsage == 4 || info.hid.usUsage == 5) )
 //          mRestPad.push_back( dev.hDevice);

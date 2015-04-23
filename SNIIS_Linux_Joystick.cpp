@@ -4,8 +4,6 @@
 #include "SNIIS_Linux.h"
 #include "SNIIS_Intern.h"
 
-#include "../Traumklassen/TraumBasis.h"
-
 #if SNIIS_SYSTEM_LINUX
 #include <cstring>
 #include <linux/input.h>

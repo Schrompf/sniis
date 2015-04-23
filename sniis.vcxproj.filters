@@ -24,6 +24,18 @@
     <ClCompile Include="SNIIS_C.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="SNIIS_Linux.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Linux_Joystick.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Linux_Keyboard.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Linux_Mouse.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SNIIS_Intern.h">

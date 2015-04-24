@@ -94,7 +94,7 @@ void WinMouse::EndUpdate()
 
   // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
-  if( !mSystem->IsInMultiMouseMode() )
+  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() )
   {
     POINT point;
     GetCursorPos(&point);
@@ -108,6 +108,39 @@ void WinMouse::EndUpdate()
   // send the mouse move
   if( mState.relX != 0 || mState.relY != 0 )
     InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinMouse::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus )
+  {
+    // get current mouse position when in SingleMouseMode
+    if( !mSystem->IsInMultiMouseMode() )
+    {
+      POINT point;
+      GetCursorPos(&point);
+      ScreenToClient( mSystem->GetWindowHandle(), &point);
+      int prevAbsX = mState.absX, prevAbsY = mState.absY;
+      mState.absX = point.x; mState.absY = point.y;
+      mState.relX = mState.absX - prevAbsX;
+      mState.relY = mState.absY - prevAbsY;
+      if( mState.relX != 0 || mState.relY != 0 )
+        InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+    }
+  }
+  else
+  {
+    for( size_t a = 0; a < MB_Count; ++a )
+    {
+      if( mState.buttons & (1 << a) )
+      {
+        mState.prevButtons |= (1 << a);
+        mState.buttons &= std::numeric_limits<decltype( mState.buttons)>::max() ^ (1 << a);
+        InputSystemHelper::DoMouseButton( this, a, false);
+      }
+    }
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

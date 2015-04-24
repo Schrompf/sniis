@@ -55,6 +55,8 @@ public:
   void HandleWinMessage( uint32_t message, size_t lParam, size_t wParam) override;
   /// Ends the update, to be called after handling system messages
   void EndUpdate() override;
+  /// Notifies the input system that the application has lost/gained focus.
+  void SetFocus(bool pHasFocus) override;
 
   HWND GetWindowHandle() const { return hWnd; }
 };
@@ -77,6 +79,7 @@ public:
   void StartUpdate();
   void ParseMessage( const RAWINPUT& e);
   void EndUpdate();
+  void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
@@ -111,6 +114,7 @@ public:
 
   void StartUpdate();
   void ParseMessage( const RAWINPUT& e);
+  void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
@@ -134,7 +138,7 @@ class WinJoystick : public SNIIS::Joystick
   DIDEVCAPS mDIJoyCaps;
   GUID mGuidInstance, mGuidProduct;
   size_t mXInputPadIndex;
-  size_t mNumRealButtons, mNumButtons, mNumAxes;
+  size_t mNumButtons, mNumAxes;
   struct State {
     uint64_t buttons, prevButtons;
     float axes[16], diffs[16];
@@ -145,6 +149,8 @@ public:
   WinJoystick( WinInput* pSystem, size_t pId, IDirectInput8* pDI, GUID pGuidInstance, GUID pGuidProduct);
 
   void StartUpdate();
+  void SetFocus( bool pHasFocus);
+
   bool IsXInput() const { return mXInputPadIndex != SIZE_MAX; }
   GUID GetProductGuid() const { return mGuidProduct; }
   void SetXInput( size_t pXIndex);

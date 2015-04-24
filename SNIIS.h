@@ -373,6 +373,11 @@ public:
   /// Ends the update, to be called after handling system messages
   virtual void EndUpdate();
 
+  /// Notifies the input system that the application has lost/gained focus. This avoids sticky keys where the PRESS msg
+  /// was received but the RELEASE msg was not. Plus some OSes just keep sending input events regardless of focus.
+  virtual void SetFocus(bool pHasFocus) = 0;
+  bool HasFocus() const { return mHasFocus; }
+
 #if SNIIS_SYSTEM_WINDOWS
   /// on Windows, hand WM_INPUT messages to it from your message queue
   virtual void HandleWinMessage(uint32_t message, size_t lParam, size_t wParam) = 0;
@@ -440,6 +445,7 @@ protected:
   size_t mNumMice, mNumKeyboards, mNumJoysticks;
   bool mReorderMiceOnActivity, mReorderKeyboardsOnActivity;
   InputHandler* mHandler;
+  bool mHasFocus;
   bool mIsInMultiMouseMode;
 
   KeyRepeatCfg mKeyRepeatCfg;

@@ -95,8 +95,33 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e)
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
   InputSystemHelper::MakeThisKeyboardFirst( this);
 
-  Set( scanCode, pressed);
-  InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
+  if( IsSet( scanCode) != pressed )
+  {
+    Set( scanCode, pressed);
+    InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinKeyboard::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus )
+  {
+    // don't do anything. Keys currently pressed are lost then, all other controls will be handled correctly at next update
+    // TODO: maybe query current keyboard state? To capture that Alt+Tab? Naaah.
+  }
+  else
+  {
+    for( size_t a = 0; a < NumKeys; ++a )
+    {
+      if( IsSet( a) )
+      {
+        Set( a,  false);
+        mPrevState[a/64] |= (1ull << (a&63));
+        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false);
+      }
+    }
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

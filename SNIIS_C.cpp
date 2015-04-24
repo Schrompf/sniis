@@ -32,8 +32,8 @@ extern "C" void SNIIS_EndUpdate()
     SNIIS::gInstance->EndUpdate();
 }
 
-/// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling 
-/// system messages, then finally call EndUpdate();
+// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling 
+// system messages, then finally call EndUpdate();
 #if SNIIS_SYSTEM_WINDOWS
 extern "C" void SNIIS_HandleWinMessage( uint32_t message, size_t lParam, size_t wParam)
 {
@@ -42,3 +42,10 @@ extern "C" void SNIIS_HandleWinMessage( uint32_t message, size_t lParam, size_t 
 }
 #elif SNIIS_SYSTEM_LINUX
 #endif
+
+// Notifies SNIIS about focus loss/gain. Non-Zero for focus gain, zero for focus loss
+extern "C" void SNIIS_SetFocus( int pFocus)
+{
+  if( SNIIS::gInstance )
+    SNIIS::gInstance->SetFocus( pFocus != 0);
+}

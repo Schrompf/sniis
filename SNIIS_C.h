@@ -35,6 +35,9 @@ void SNIIS_EndUpdate();
 #elif SNIIS_SYSTEM_LINUX
 #endif
 
+/// Notifies SNIIS about focus loss/gain. Non-Zero for focus gain, zero for focus loss
+void SNIIS_SetFocus( int pFocus);
+
 #ifdef __cplusplus
 }
 #endif

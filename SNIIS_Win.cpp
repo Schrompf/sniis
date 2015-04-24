@@ -278,6 +278,10 @@ void WinInput::StartUpdate()
 // Handles a windows message relevant to Input.
 void WinInput::HandleWinMessage( uint32_t message, size_t lParam, size_t wParam)
 {
+  // there shouldn't be any event if we have no focus, but anyways...
+  if( !HasFocus() )
+    return;
+
   // distribute RawInput event
   switch( message )
   {
@@ -319,6 +323,25 @@ void WinInput::EndUpdate()
   {
     if( auto mouse = dynamic_cast<WinMouse*> (d) )
       mouse->EndUpdate();
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Notifies the input system that the application has lost/gained focus.
+void WinInput::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus == mHasFocus )
+    return;
+
+  mHasFocus = pHasFocus;
+  for( auto d : mDevices )
+  {
+    if( auto k = dynamic_cast<WinKeyboard*> (d) )
+      k->SetFocus( mHasFocus);
+    else if( auto m = dynamic_cast<WinMouse*> (d) )
+      m->SetFocus( mHasFocus);
+    else if( auto j = dynamic_cast<WinJoystick*> (d) )
+      j->SetFocus( mHasFocus);
   }
 }
 

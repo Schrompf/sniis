@@ -23,6 +23,7 @@ InputSystem::InputSystem()
   mNumMice = mNumKeyboards = mNumJoysticks = 0;
   mReorderMiceOnActivity = mReorderKeyboardsOnActivity = true;
   mHandler = nullptr;
+  mHasFocus = true;
   mIsInMultiMouseMode = false;
 
   mKeyRepeatState.lasttick = clock();

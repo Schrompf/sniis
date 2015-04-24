@@ -1036,7 +1036,7 @@ void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
         kc = (SNIIS::KeyCode) (KC_FIRST_CUSTOM + std::distance( mExtraButtons.cbegin(), it));
       }
 
-      if( kc != KC_UNASSIGNED )
+      if( kc != KC_UNASSIGNED && isPressed != IsSet( kc) )
       {
         InputSystemHelper::MakeThisKeyboardFirst( this);
 
@@ -1053,8 +1053,25 @@ void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void LinuxKeyboard::EndUpdate()
+void LinuxKeyboard::SetFocus( bool pHasFocus)
 {
+  if( pHasFocus )
+  {
+    // Don't do anything. Keys currently pressed are lost then, all other controls will be handled correctly at next update
+    // TODO: maybe query current keyboard state? To capture that Alt+Tab? Naaah.
+  }
+  else
+  {
+    for( size_t a = 0; a < mNumKeys; ++a )
+    {
+      if( IsSet( a) )
+      {
+        Set( a,  false);
+        mPrevState[a/64] |= (1ull << (a&63));
+        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false);
+      }
+    }
+  }
 }
 
 void LinuxKeyboard::Set( size_t kc, bool set)

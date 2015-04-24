@@ -7,6 +7,8 @@
 #if SNIIS_SYSTEM_LINUX
 using namespace SNIIS;
 
+#include <cstring>
+#include <sstream>
 #include <fcntl.h>
 #include <linux/input.h>
 
@@ -230,8 +232,25 @@ void LinuxInput::EndUpdate()
   {
     if( auto mouse = dynamic_cast<LinuxMouse*> (d) )
       mouse->EndUpdate();
-    else if( auto keyboard = dynamic_cast<LinuxKeyboard*> (d) )
-      keyboard->EndUpdate();
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Notifies the input system that the application has lost/gained focus.
+void LinuxInput::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus == mHasFocus )
+    return;
+
+  mHasFocus = pHasFocus;
+  for( auto d : mDevices )
+  {
+    if( auto k = dynamic_cast<LinuxKeyboard*> (d) )
+      k->SetFocus( mHasFocus);
+    else if( auto m = dynamic_cast<LinuxMouse*> (d) )
+      m->SetFocus( mHasFocus);
+    else if( auto j = dynamic_cast<LinuxJoystick*> (d) )
+      j->SetFocus( mHasFocus);
   }
 }
 

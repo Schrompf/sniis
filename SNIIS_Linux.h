@@ -39,10 +39,10 @@ public:
 
   /// Starts the update, to be called before handling system messages
   void StartUpdate() override;
-  /// Handles an XEvent - pass a pointer to the XEvent structure read by XNextEvent()
-//  void HandleXEvent( void* xevent) override;
   /// Ends the update, to be called after handling system messages
   void EndUpdate() override;
+  /// Notifies the input system that the application has lost/gained focus.
+  void SetFocus(bool pHasFocus) override;
 
   Display* GetDisplay() const { return mDisplay; }
 };
@@ -69,6 +69,7 @@ public:
   void StartUpdate();
   void HandleEvent( const XIRawEvent& ev);
   void EndUpdate();
+  void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
@@ -102,7 +103,7 @@ public:
 
   void StartUpdate();
   void HandleEvent( const XIRawEvent& ev);
-  void EndUpdate();
+  void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
@@ -135,6 +136,7 @@ public:
   LinuxJoystick( LinuxInput* pSystem, size_t pId, int pFileDesc);
 
   void StartUpdate();
+  void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;

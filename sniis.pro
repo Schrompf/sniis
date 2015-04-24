@@ -19,4 +19,5 @@ HEADERS += \
     SNIIS.h \
     SNIIS_C.h \
     SNIIS_Intern.h \
-    SNIIS_Linux.h
+    SNIIS_Linux.h \
+    SNIIS_Win.h

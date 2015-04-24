@@ -8,7 +8,7 @@
 using namespace SNIIS;
 
 // --------------------------------------------------------------------------------------------------------------------
-WinKeyboard::WinKeyboard( WinInput* pSystem, size_t pId, HANDLE pHandle, IDirectInputDevice8* pDirectInputKeyboard) 
+WinKeyboard::WinKeyboard( WinInput* pSystem, size_t pId, HANDLE pHandle, IDirectInputDevice8* pDirectInputKeyboard)
   : Keyboard( pId), mSystem( pSystem), mHandle( pHandle), mKeyboard( pDirectInputKeyboard)
 {
   memset( mState, 0, sizeof( mState));
@@ -145,7 +145,7 @@ size_t WinKeyboard::TranslateText( size_t kc)
 		// Combine the two into a single character
 		WCHAR wcBuff[3] = {buff[0], deadKey, '\0'};
 		WCHAR out[3];
-		
+
 		deadKey = '\0';
 		if(FoldStringW(MAP_PRECOMPOSED, (LPWSTR)wcBuff, 3, (LPWSTR)out, 3))
 			return out[0];
@@ -160,15 +160,15 @@ size_t WinKeyboard::TranslateText( size_t kc)
 		// Combining versions range from 0x300 to 0x36F; only 5 (for French) have been mapped below
 		// http://www.fileformat.info/info/unicode/block/combining_diacritical_marks/images.htm
 		switch(buff[0])	{
-		case 0x5E: // Circumflex accent: â
+		case 0x5E: // Circumflex accent: Ã¢
 			deadKey = 0x302; break;
-		case 0x60: // Grave accent: à
+		case 0x60: // Grave accent: Ã 
 			deadKey = 0x300; break;
-		case 0xA8: // Diaeresis: ü
+		case 0xA8: // Diaeresis: Ã¼
 			deadKey = 0x308; break;
-		case 0xB4: // Acute accent: é
+		case 0xB4: // Acute accent: Ã©
 			deadKey = 0x301; break;
-		case 0xB8: // Cedilla: ç
+		case 0xB8: // Cedilla: Ã§
 			deadKey = 0x327; break;
 		default:
 			deadKey = buff[0]; break;

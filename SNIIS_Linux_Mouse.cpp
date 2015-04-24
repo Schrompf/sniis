@@ -109,23 +109,43 @@ void LinuxMouse::EndUpdate()
   if( mw_up != ((mState.buttons & (1 << MB_WheelUp)) != 0) )
     DoMouseClick( MB_WheelUp, mw_up);
 
-  // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
-  // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
-  if( !mSystem->IsInMultiMouseMode() )
-  {
-/*    POINT point;
-    GetCursorPos(&point);
-    ScreenToClient( mSystem->GetWindowHandle(), &point);
-    int prevAbsX = mState.absX, prevAbsY = mState.absY;
-    mState.absX = point.x; mState.absY = point.y;
-    mState.relX = mState.absX - prevAbsX;
-    mState.relY = mState.absY - prevAbsY;
-    */
-  }
-
   // send the mouse move
   if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
     InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxMouse::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus )
+  {
+    // get current mouse position when in SingleMouseMode
+    if( !mSystem->IsInMultiMouseMode() )
+    {
+      Window wa, wb;
+      int rootx, rooty, childx, childy;
+      unsigned int mask;
+      if( XQueryPointer( mSystem->GetDisplay(), DefaultRootWindow( mSystem->GetDisplay()), &wa, &wb, &rootx, &rooty, &childx, &childy, &mask) != 0 )
+      {
+        mAxes[0].prevValue = mAxes[0].value; mAxes[1].prevValue = mAxes[1].value;
+        mAxes[0].value = rootx; mAxes[1].value = rooty;
+        if( mAxes[0].value != mAxes[0].prevValue || mAxes[1].value != mAxes[1].prevValue )
+          InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
+      }
+    }
+  }
+  else
+  {
+    for( size_t a = 0; a < MB_Count; ++a )
+    {
+      if( mState.buttons & (1 << a) )
+      {
+        mState.prevButtons |= (1 << a);
+        mState.buttons &= std::numeric_limits<decltype( mState.buttons)>::max() ^ (1 << a);
+        InputSystemHelper::DoMouseButton( this, a, false);
+      }
+    }
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

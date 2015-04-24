@@ -185,6 +185,39 @@ void LinuxJoystick::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+void LinuxJoystick::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus )
+  {
+    // don't do anything. Buttons currently pressed are lost then, all other controls will be handled correctly at next update
+    // TODO: relative axes? If anyone ever spots one in the wilds, please let me know
+  }
+  else
+  {
+    // zero all buttons and axes
+    for( size_t a = 0; a < mAxes.size(); ++a )
+    {
+      if( mState.axes[a] != 0.0f )
+      {
+        mState.diffs[a] = -mState.axes[a];
+        mState.axes[a] = 0.0f;
+        InputSystemHelper::DoJoystickAxis( this, a, 0.0f);
+      }
+    }
+
+    for( size_t a = 0; a < mButtons.size(); ++a )
+    {
+      if( mState.buttons & (1ull << a) )
+      {
+        mState.buttons &= UINT64_MAX ^ (1ull << a);
+        mState.prevButtons |= 1ull << a;
+        InputSystemHelper::DoJoystickButton( this, a, false);
+      }
+    }
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 size_t LinuxJoystick::GetNumButtons() const
 {
   return mButtons.size();

@@ -11,6 +11,8 @@
   #define SNIIS_SYSTEM_WINDOWS 1
 #elif defined(__linux__)
   #define SNIIS_SYSTEM_LINUX 1
+#elif defined(__MACH__) && defined(__APPLE__)
+  #define SNIIS_SYSTEM_MAC 1
 #else
   #error Platform not implemented
 #endif
@@ -28,7 +30,7 @@ void SNIIS_StartUpdate();
 /// Per-frame update cycle: ends the input processing
 void SNIIS_EndUpdate();
 
-/// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling 
+/// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling
 /// system messages, then finally call EndUpdate();
 #if SNIIS_SYSTEM_WINDOWS
   void SNIIS_HandleWinMessage( uint32_t message, size_t lParam, size_t wParam);

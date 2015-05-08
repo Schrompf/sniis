@@ -22,6 +22,8 @@
 #define SNIIS_SYSTEM_WINDOWS 1
 #elif defined(__linux__)
 #define SNIIS_SYSTEM_LINUX 1
+#elif defined(__MACH__) && defined(__APPLE__)
+#define SNIIS_SYSTEM_MAC 1
 #else
 #error Platform not implemented
 #endif

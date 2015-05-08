@@ -13,11 +13,18 @@ SOURCES += \
     SNIIS_Linux.cpp \
     SNIIS_Linux_Mouse.cpp \
     SNIIS_Linux_Keyboard.cpp \
-    SNIIS_Linux_Joystick.cpp
+    SNIIS_Linux_Joystick.cpp \
+    SNIIS_Mac.cpp \
+    SNIIS_Mac_Mouse.cpp \
+    SNIIS_Mac_Keyboard.cpp \
+    SNIIS_Mac_Joystick.cpp
 
 HEADERS += \
     SNIIS.h \
     SNIIS_C.h \
     SNIIS_Intern.h \
     SNIIS_Linux.h \
-    SNIIS_Win.h
+    SNIIS_Win.h \
+    SNIIS_Mac.h
+
+DISTFILES +=

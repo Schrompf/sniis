@@ -1013,8 +1013,6 @@ void LinuxKeyboard::StartUpdate()
   mPrevState = mState;
 }
 
-bool jetzt = false;
-
 // --------------------------------------------------------------------------------------------------------------------
 void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
 {

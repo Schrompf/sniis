@@ -7,6 +7,8 @@
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
 
+#include "../Traumklassen/Traumklassen.h"
+
 // --------------------------------------------------------------------------------------------------------------------
 // Constructor
 MacInput::MacInput()
@@ -16,14 +18,25 @@ MacInput::MacInput()
   if( !mHidManager )
     throw std::runtime_error( "Failed to create HIDManager");
 
+  // tell 'em we want it all
+  IOHIDManagerSetDeviceMatching( mHidManager, nullptr);
   // register our enumeration callback
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, &MacInput::HandleNewDeviceCallback, (void*) this);
   // register us for running the event loop
   IOHIDManagerScheduleWithRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+
   // and open the manager, enumerating all devices along with it
   IOReturn res = IOHIDManagerOpen( mHidManager, 0);
   if( res != kIOReturnSuccess )
     throw std::runtime_error( "Failed to open HIDManager / enumerate devices");
+
+  // run the update loop to get the callbacks for new devices
+  while( CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, TRUE) == kCFRunLoopRunHandledSource )
+    /**/;
+
+  // remove the manager from the callbacks and runloop
+  IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, nullptr, nullptr);
+  IOHIDManagerUnscheduleFromRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -46,8 +59,15 @@ void MacInput::StartUpdate()
   InputSystem::StartUpdate();
 
   // device work
-  for( auto d : mMacDevices )
+  for( size_t a = 0; a < mMacDevices.size(); ++a )
+  {
+    MacDevice* d = mMacDevices[a];
     d->StartUpdate();
+  }
+
+  // then run the update loop
+  while( CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, TRUE) == kCFRunLoopRunHandledSource )
+    /**/;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -57,6 +77,10 @@ void MacInput::EndUpdate()
   // base work
   InputSystem::EndUpdate();
 
+  // Mice need postprocessing
+  for( auto d : mMacDevices )
+    if( auto m = dynamic_cast<MacMouse*> (d) )
+      m->EndUpdate();
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -107,6 +131,8 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
   tmp[l++] = '|';
   CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
 
+  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
+
   switch( usage )
   {
     case kHIDUsage_GD_Mouse:
@@ -141,6 +167,91 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
 
 // --------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------
+std::vector<MacControl> EnumerateDeviceControls( IOHIDDeviceRef devref)
+{
+  // enumerate all controls of that device
+  std::vector<MacControl> controls;
+  CFArrayRef elements = IOHIDDeviceCopyMatchingElements( devref, nullptr, kIOHIDOptionsTypeNone);
+  for( size_t a = 0, count = CFArrayGetCount( elements); a < count; ++a )
+  {
+    auto elmref = (IOHIDElementRef) CFArrayGetValueAtIndex( elements, CFIndex( a));
+    auto type = IOHIDElementGetType( elmref);
+    auto usepage = IOHIDElementGetUsagePage( elmref), usage = IOHIDElementGetUsage( elmref);
+
+    size_t prevSize = controls.size();
+    if( type == kIOHIDElementTypeInput_Axis || type == kIOHIDElementTypeInput_Misc )
+    {
+      auto min = IOHIDElementGetLogicalMin( elmref), max = IOHIDElementGetLogicalMax( elmref);
+      if( usage == kHIDUsage_GD_Hatswitch )
+      {
+        controls.push_back( MacControl{ MacControl::Type_Hat, "", 0, usepage, usage, min, max });
+        controls.push_back( MacControl{ MacControl::Type_Hat_Second, "", 0, usepage, usage, min, max });
+      }
+      else
+      {
+        controls.push_back( MacControl{ MacControl::Type_Axis, "", 0, usepage, usage, min, max });
+      }
+    }
+    else if( type == kIOHIDElementTypeInput_Button )
+    {
+      controls.push_back( MacControl{ MacControl::Type_Button, "", 0, usepage, usage, 0, 1 });
+    }
+
+    // add a few things afterwards if we got new controls
+    for( size_t a = prevSize; a < controls.size(); ++a )
+    {
+      controls[a].mCookie = IOHIDElementGetCookie( elmref);
+      auto name = IOHIDElementGetName( elmref);
+      if( name )
+      {
+        std::vector<char> tmp( 500, 0);
+        CFStringGetCString( name, &tmp[0], tmp.size(), kCFStringEncodingUTF8);
+        controls[a].mName = &tmp[0];
+      }
+    }
+  }
+
+  return controls;
+}
+
+void InputElementValueChangeCallback( void* ctx, IOReturn res, void* sender, IOHIDValueRef val)
+{
+  SNIIS_UNUSED( sender);
+  if( res != kIOReturnSuccess )
+    return;
+
+  auto dev = static_cast<MacDevice*> (ctx);
+  auto elm = IOHIDValueGetElement( val);
+  auto keksie = IOHIDElementGetCookie( elm);
+  auto value = IOHIDValueGetIntegerValue( val);
+  dev->HandleEvent( keksie, value);
+}
+
+std::pair<float, float> ConvertHatToAxes( long min, long max, long value)
+{
+  std::pair<float, float> axes;
+  // Hats deliver a value that starts at North (x=0, y=-1) and goes a full circle clockwise within the value range
+  // We need to decompose this into two axes from roughly 8 standard cases with a little safety each
+  float v = float( value - min) / float( max - min);
+  if( v > 0.1f && v < 0.4f )
+    axes.first = 1.0f;
+  else if( v > 0.6f && v < 0.9f )
+    axes.first = -1.0f;
+  else
+    axes.first = 0.0f;
+
+  if( v < 0.15f || v > 0.85f )
+    axes.second = -1.0f;
+  else if( v > 0.35f && v < 0.65f )
+    axes.second = 1.0f;
+  else
+    axes.second = 0.0f;
+
+  return axes;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // Initializes the input system with the given InitArgs. When successful, gInstance is not Null.
 bool InputSystem::Initialize(void* pInitArg)
 {
@@ -169,3 +280,4 @@ void InputSystem::Shutdown()
 }
 
 #endif // SNIIS_SYSTEM_MAC
+

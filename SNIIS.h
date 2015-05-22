@@ -189,7 +189,6 @@ enum MouseButtonID
 {
   MB_Left, MB_Right, MB_Middle,
   MB_Button3, MB_Button4, MB_Button5, MB_Button6, MB_Button7,
-  MB_WheelDown, MB_WheelUp,
   MB_Count
 };
 
@@ -331,6 +330,7 @@ struct AnalogChannel
 /// Keyboard key: OnKey() -> OnUnicode() -> OnDigitalEvent() -> OnDigitalChannel()
 /// Mouse button: OnMouseButton() -> OnDigitalEvent() -> OnDigitalChannel()
 /// Mouse move: OnMouseMove() -> OnAnalogEvent() -> OnAnalogChannel()
+/// Mouse wheel: OnMouseWheel() -> OnAnalogEvent() -> OnAnalogChannel()
 /// Controller button: OnJoystickButton() -> OnDigitalEvent() -> OnDigitalChannel()
 /// Controller stick/pad: OnJoystickAxis() -> OnAnalogEvent() -> OnAnalogChannel()
 class InputHandler
@@ -338,19 +338,20 @@ class InputHandler
 public:
   virtual ~InputHandler() { }
 
-  virtual bool OnKey(Keyboard*, KeyCode, bool) { return false; }
-  virtual bool OnMouseMoved(Mouse*, int, int) { return false; }
-  virtual bool OnMouseButton(Mouse*, size_t, bool) { return false; }
+  virtual bool OnKey( Keyboard*, KeyCode, bool) { return false; }
+  virtual bool OnMouseMoved( Mouse*, int, int) { return false; }
+  virtual bool OnMouseButton( Mouse*, size_t, bool) { return false; }
+  virtual bool OnMouseWheel( Mouse*, float) { return false; }
 
-  virtual bool OnJoystickButton(Joystick*, size_t, bool) { return false; }
-  virtual bool OnJoystickAxis(Joystick*, size_t, float) { return false; }
+  virtual bool OnJoystickButton( Joystick*, size_t, bool) { return false; }
+  virtual bool OnJoystickAxis( Joystick*, size_t, float) { return false; }
 
-  virtual bool OnUnicode(Keyboard*, size_t) { return false; }
+  virtual bool OnUnicode( Keyboard*, size_t) { return false; }
 
-  virtual bool OnDigitalEvent(Device*, size_t, bool) { return false; }
-  virtual bool OnAnalogEvent(Device*, size_t, float) { return false; }
-  virtual void OnDigitalChannel(const DigitalChannel&) { }
-  virtual void OnAnalogChannel(const AnalogChannel &) { }
+  virtual bool OnDigitalEvent( Device*, size_t, bool) { return false; }
+  virtual bool OnAnalogEvent( Device*, size_t, float) { return false; }
+  virtual void OnDigitalChannel( const DigitalChannel&) { }
+  virtual void OnAnalogChannel( const AnalogChannel &) { }
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -365,8 +366,8 @@ protected:
 
 public:
   /// Initializes the input system with the given InitArgs. When successful, gInstance is not Null.
-  /// Windows: pass in your HWND. Linux: pass in your X Window handle
-  static bool Initialize(void* pInitArg);
+  /// Windows: pass in your HWND. Linux: pass in your X Window handle. Mac: unused, pass nullptr.
+  static bool Initialize( void* pInitArg);
   /// Destroys the input system. After returning gInstance is Null again
   static void Shutdown();
 
@@ -377,7 +378,7 @@ public:
 
   /// Notifies the input system that the application has lost/gained focus. This avoids sticky keys where the PRESS msg
   /// was received but the RELEASE msg was not. Plus some OSes just keep sending input events regardless of focus.
-  virtual void SetFocus(bool pHasFocus) = 0;
+  virtual void SetFocus( bool pHasFocus) = 0;
   bool HasFocus() const { return mHasFocus; }
 
 #if SNIIS_SYSTEM_WINDOWS
@@ -395,18 +396,18 @@ public:
   size_t GetNumKeyboards() const { return mNumKeyboards; }
   size_t GetNumJoysticks() const { return mNumJoysticks; }
   /// Gets the nth device of that specific kind
-  Mouse* GetMouseByCount(size_t pNumber) const;
-  Keyboard* GetKeyboardByCount(size_t pNumber) const;
-  Joystick* GetJoystickByCount(size_t pNumber) const;
+  Mouse* GetMouseByCount( size_t pNumber) const;
+  Keyboard* GetKeyboardByCount( size_t pNumber) const;
+  Joystick* GetJoystickByCount( size_t pNumber) const;
 
   /// Event handler to be called on input events.
   InputHandler* GetHandler() const { return mHandler; }
-  void SetHandler(InputHandler* handler) { mHandler = handler; }
+  void SetHandler( InputHandler* handler) { mHandler = handler; }
 
   /// Enables or disables multi-mice mode. In Single mode all mice draw their state from the global Windows state and thus
   /// match the expected movement exactly. In Multi mode, RawInput is used instead which lacks any Mouse speed and acceleration
   /// setting, therefore the mouse might move differently than what the user expects.
-  virtual void SetMultiMouseMode(bool enabled) { mIsInMultiMouseMode = enabled; }
+  virtual void SetMultiMouseMode( bool enabled) { mIsInMultiMouseMode = enabled; }
   /// Returns whether MultiMouseMode is currently enabled.
   bool IsInMultiMouseMode() const { return mIsInMultiMouseMode; }
 
@@ -417,17 +418,20 @@ public:
   int GetRelMouseX() const { return mFirstMouse ? mFirstMouse->GetRelMouseX() : 0; }
   int GetRelMouseY() const { return mFirstMouse ? mFirstMouse->GetRelMouseY() : 0; }
 
-  bool IsKeyDown(KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->IsKeyDown(key) : false; }
-  bool WasKeyReleased(KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyPressed(key) : false; }
-  bool WasKeyPressed(KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyReleased(key) : false; }
+  bool IsKeyDown( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->IsKeyDown( key) : false; }
+  bool WasKeyReleased( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyPressed( key) : false; }
+  bool WasKeyPressed( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyReleased( key) : false; }
 
-  bool IsMouseDown(size_t btnId) const { return mFirstMouse ? mFirstMouse->IsButtonDown(btnId) : false; }
-  bool WasMouseReleased(size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonPressed(btnId) : false; }
-  bool WasMousePressed(size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonReleased(btnId) : false; }
+  bool IsMouseDown( size_t btnId) const { return mFirstMouse ? mFirstMouse->IsButtonDown( btnId) : false; }
+  bool WasMouseReleased( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonPressed( btnId) : false; }
+  bool WasMousePressed( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonReleased( btnId) : false; }
+  float GetMouseWheelDiff() const { return mFirstMouse ? mFirstMouse->GetAxisAbsolute( 2) : 0.0f; }
 
-  bool IsJoyDown(size_t btnId) const { return mFirstJoystick ? mFirstJoystick->IsButtonDown(btnId) : false; }
-  bool WasJoyReleased(size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonPressed(btnId) : false; }
-  bool WasJoyPressed(size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonReleased(btnId) : false; }
+  bool IsJoyDown( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->IsButtonDown( btnId) : false; }
+  bool WasJoyReleased( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonPressed( btnId) : false; }
+  bool WasJoyPressed( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonReleased( btnId) : false; }
+  float GetJoyAxisAbsolute( size_t axisId) const { return mFirstJoystick ? mFirstJoystick->GetAxisAbsolute( axisId) : 0.0f; }
+  float GetJoyAxisDifference( size_t axisId) const { return mFirstJoystick ? mFirstJoystick->GetAxisDifference( axisId) : 0.0f; }
 
   /// Key repetition config
   void SetKeyRepeatCfg(const KeyRepeatCfg& cfg) { mKeyRepeatCfg = cfg; }
@@ -435,8 +439,8 @@ public:
   bool IsInKeyRepeat() const { return mKeyRepeatState.mTimeTillRepeat > 0.0f; }
 
   /// Event channels
-  DigitalChannel& GetDigital(size_t id);
-  AnalogChannel& GetAnalog(size_t id);
+  DigitalChannel& GetDigital( size_t id);
+  AnalogChannel& GetAnalog( size_t id);
   std::vector<size_t> GetDigitalIds() const;
   std::vector<size_t> GetAnalogIds() const;
   void ClearChannelAssignments();

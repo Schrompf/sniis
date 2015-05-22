@@ -6,12 +6,36 @@
 
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
+#include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
 MacJoystick::MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
   : Joystick( pId), MacDevice( pSystem, pDeviceRef)
 {
   memset( &mState, 0, sizeof( mState));
+
+  if( IOHIDDeviceOpen( mDevice, kIOHIDOptionsTypeNone) != kIOReturnSuccess )
+    throw std::runtime_error( "Failed to open HID device");
+
+  // get all controls
+  auto ctrls = EnumerateDeviceControls( mDevice);
+  for( const auto& c : ctrls )
+  {
+    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+    if( c.mType != MacControl::Type_Button )
+      mAxes.push_back( c);
+    else
+      mButtons.push_back( c);
+  }
+
+  // sort both lists by usage, because at least for the XBox360 controller I have here I got a reliable layout that
+  // matches the list under Linux and Windows
+  std::sort( mAxes.begin(), mAxes.end(), [](MacControl& c1, MacControl& c2) { return c1.mUsage < c2.mUsage; });
+  std::sort( mButtons.begin(), mButtons.end(), [](MacControl& c1, MacControl& c2) { return c1.mUsage < c2.mUsage; });
+
+  // call us if something moves
+  IOHIDDeviceRegisterInputValueCallback( mDevice, &InputElementValueChangeCallback, static_cast<MacDevice*> (this));
+  IOHIDDeviceScheduleWithRunLoop( mDevice, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -25,8 +49,40 @@ void MacJoystick::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacJoystick::HandleEvent( uint32_t page, uint32_t usage, int value)
+void MacJoystick::HandleEvent( IOHIDElementCookie cookie, CFIndex value)
 {
+  auto axit = std::find_if( mAxes.cbegin(), mAxes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
+  auto buttit = std::find_if( mButtons.cbegin(), mButtons.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
+
+  if( axit != mAxes.cend() )
+  {
+    size_t idx = std::distance( mAxes.cbegin(), axit);
+    if( axit->mType == MacControl::Type_Hat )
+    {
+      // a hat always generates two axes
+      assert( mAxes.size() > idx+2 );
+      std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
+      InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
+      InputSystemHelper::DoJoystickAxis( this, idx+1, mState.axes[idx+1]);
+    }
+    else
+    {
+      // try to tell one-sided axes apart from symmetric axes and act accordingly
+      if( std::abs( axit->mMin) <= std::abs( axit->mMax) / 10 )
+        mState.axes[idx] = float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+      else
+        mState.axes[idx] = (float( value - axit->mMin) / float( axit->mMax - axit->mMin)) * 2.0f - 1.0f;
+      InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
+    }
+  }
+
+  if( buttit != mButtons.cend() )
+  {
+    size_t idx = std::distance( mButtons.cbegin(), buttit);
+    bool isDown = (value != 0);
+    mState.buttons = (mState.buttons & (UINT64_MAX ^ (1ull << idx))) | ((isDown ? 1ull : 0u) << idx);
+    InputSystemHelper::DoJoystickButton( this, idx, isDown);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -8,6 +8,7 @@
 #if SNIIS_SYSTEM_MAC
 
 #include <IOKit/hid/IOHIDLib.h>
+#include <CoreGraphics/CoreGraphics.h>
 
 class MacDevice;
 class MacMouse;
@@ -34,15 +35,32 @@ protected:
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
+/// Describes a control of a HID - it's the same for all kinds of devices on Mac, which makes things confortable
+struct MacControl
+{
+  enum Type { Type_Axis, Type_Hat, Type_Hat_Second, Type_Button };
+  Type mType;
+  std::string mName;
+  IOHIDElementCookie mCookie;
+  uint32_t mUsePage, mUsage;
+  long mMin, mMax; // only for Type_Axis
+};
+
+std::vector<MacControl> EnumerateDeviceControls( IOHIDDeviceRef devref);
+void InputElementValueChangeCallback( void* ctx, IOReturn res, void* sender, IOHIDValueRef val);
+std::pair<float, float> ConvertHatToAxes( long min, long max, long value);
+
+/// -------------------------------------------------------------------------------------------------------------------
 /// common Mac device interface, because they all work on USB HID data
 class MacDevice
 {
+  friend class MacInput;
 public:
   MacDevice( MacInput* pSystem, IOHIDDeviceRef pDeviceRef) : mSystem( pSystem), mDevice( pDeviceRef) { }
   /// Starts the update
   virtual void StartUpdate() = 0;
   /// Handles an input event coming from the USB HID callback
-  virtual void HandleEvent( uint32_t page, uint32_t usage, int value) = 0;
+  virtual void HandleEvent( IOHIDElementCookie cookie, CFIndex value) = 0;
   /// Notifies the input device that the application has lost/gained focus.
   virtual void SetFocus( bool pHasFocus) = 0;
 protected:
@@ -54,19 +72,20 @@ protected:
 /// Mac mouse, fed by USB HID events
 class MacMouse : public SNIIS::Mouse, public MacDevice
 {
-  size_t mNumAxes, mNumButtons;
   struct State
   {
-    int absWheel, relWheel;
     float axes[16], prevAxes[16];
     uint32_t buttons, prevButtons;
   } mState;
 
+  std::vector<MacControl> mButtons, mAxes;
+
 public:
   MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
+  ~MacMouse();
 
   void StartUpdate() override;
-  void HandleEvent( uint32_t page, uint32_t usage, int value) override;
+  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
   void EndUpdate();
   void SetFocus( bool pHasFocus) override;
 
@@ -97,7 +116,7 @@ public:
   MacKeyboard( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( uint32_t page, uint32_t usage, int value) override;
+  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;
@@ -116,10 +135,7 @@ protected:
 /// OSX joystick
 class MacJoystick : public SNIIS::Joystick, public MacDevice
 {
-  struct Axis { size_t idx; bool isAbsolute; int32_t min, max, flat; };
-  std::vector<Axis> mAxes;
-  struct Button { size_t idx; };
-  std::vector<Button> mButtons;
+  std::vector<MacControl> mButtons, mAxes;
   struct State {
     uint64_t buttons, prevButtons;
     float axes[16], diffs[16];
@@ -129,7 +145,7 @@ public:
   MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( uint32_t page, uint32_t usage, int value) override;
+  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;

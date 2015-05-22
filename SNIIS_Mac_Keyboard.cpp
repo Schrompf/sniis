@@ -23,7 +23,7 @@ void MacKeyboard::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacKeyboard::HandleEvent( uint32_t page, uint32_t usage, int value)
+void MacKeyboard::HandleEvent( IOHIDElementCookie cookie, CFIndex value)
 {
 }
 

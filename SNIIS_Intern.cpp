@@ -344,6 +344,16 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
+{
+  if( !gInstance->mHandler )
+    return;
+  if( gInstance->mHandler->OnMouseWheel( sender, diff) )
+    return;
+  DoAnalogEvent( sender, 2, diff);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
 {
   // store for key repetition

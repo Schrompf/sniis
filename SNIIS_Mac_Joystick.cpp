@@ -70,7 +70,7 @@ void MacJoystick::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint3
     else
     {
       // try to tell one-sided axes apart from symmetric axes and act accordingly
-      if( std::abs( axit->mMin) <= std::abs( axit->mMax) / 10 )
+      if( abs( axit->mMin) <= abs( axit->mMax) / 10 )
         mState.axes[idx] = float( value - axit->mMin) / float( axit->mMax - axit->mMin);
       else
         mState.axes[idx] = (float( value - axit->mMin) / float( axit->mMax - axit->mMin)) * 2.0f - 1.0f;

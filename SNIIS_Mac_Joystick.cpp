@@ -6,7 +6,6 @@
 
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
-#include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
 MacJoystick::MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
@@ -21,7 +20,7 @@ MacJoystick::MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceR
   auto ctrls = EnumerateDeviceControls( mDevice);
   for( const auto& c : ctrls )
   {
-    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+//    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType != MacControl::Type_Button )
       mAxes.push_back( c);
     else
@@ -49,8 +48,11 @@ void MacJoystick::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacJoystick::HandleEvent( IOHIDElementCookie cookie, CFIndex value)
+void MacJoystick::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
 {
+  SNIIS_UNUSED( usepage);
+  SNIIS_UNUSED( usage);
+
   auto axit = std::find_if( mAxes.cbegin(), mAxes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
   auto buttit = std::find_if( mButtons.cbegin(), mButtons.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
 

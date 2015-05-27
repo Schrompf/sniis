@@ -199,7 +199,7 @@ struct KeyRepeatCfg
   bool enable; ///< is Key Repetition enabled
   float delay; ///< delay until first repeated KeyPress event is sent
   float interval; ///< interval in which repeated KeyPress events are sent after initial delay
-  KeyRepeatCfg() { enable = false; delay = 0.7f; interval = 0.1f; }
+  KeyRepeatCfg() { enable = true; delay = 0.7f; interval = 0.1f; }
 };
 
 /// -------------------------------------------------------------------------------------------------------------------

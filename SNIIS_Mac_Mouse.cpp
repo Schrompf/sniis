@@ -6,7 +6,6 @@
 
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
-#include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
 MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
@@ -22,7 +21,7 @@ MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
   mAxes.resize( 3, MacControl{ MacControl::Type_Axis, "", 0, 0, 0, -1, 1 });
   for( const auto& c : ctrls )
   {
-    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+//    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType == MacControl::Type_Axis )
     {
       switch( c.mUsage )
@@ -72,8 +71,11 @@ void MacMouse::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacMouse::HandleEvent( IOHIDElementCookie cookie, CFIndex value)
+void MacMouse::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
 {
+  SNIIS_UNUSED( usepage);
+  SNIIS_UNUSED( usage);
+
   if( value != 0 )
     InputSystemHelper::MakeThisMouseFirst( this);
 

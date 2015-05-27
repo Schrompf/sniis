@@ -7,8 +7,6 @@
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
 
-#include "../Traumklassen/Traumklassen.h"
-
 // --------------------------------------------------------------------------------------------------------------------
 // Constructor
 MacInput::MacInput()
@@ -131,7 +129,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
   tmp[l++] = '|';
   CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
 
-  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
+//  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
 
   switch( usage )
   {
@@ -224,7 +222,8 @@ void InputElementValueChangeCallback( void* ctx, IOReturn res, void* sender, IOH
   auto elm = IOHIDValueGetElement( val);
   auto keksie = IOHIDElementGetCookie( elm);
   auto value = IOHIDValueGetIntegerValue( val);
-  dev->HandleEvent( keksie, value);
+  auto usepage = IOHIDElementGetUsagePage( elm), usage = IOHIDElementGetUsage( elm);
+  dev->HandleEvent( keksie, usepage, usage, value);
 }
 
 std::pair<float, float> ConvertHatToAxes( long min, long max, long value)

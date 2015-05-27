@@ -60,7 +60,7 @@ public:
   /// Starts the update
   virtual void StartUpdate() = 0;
   /// Handles an input event coming from the USB HID callback
-  virtual void HandleEvent( IOHIDElementCookie cookie, CFIndex value) = 0;
+  virtual void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) = 0;
   /// Notifies the input device that the application has lost/gained focus.
   virtual void SetFocus( bool pHasFocus) = 0;
 protected:
@@ -85,7 +85,7 @@ public:
   ~MacMouse();
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
+  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void EndUpdate();
   void SetFocus( bool pHasFocus) override;
 
@@ -112,11 +112,13 @@ class MacKeyboard : public SNIIS::Keyboard, public MacDevice
   std::vector<uint32_t> mExtraButtons;
   std::vector<uint64_t> mState, mPrevState; ///< current and previous keystate
 
+  unsigned long mDeadKeyState; // "Uint32" - lol
+
 public:
   MacKeyboard( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
+  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;
@@ -145,7 +147,7 @@ public:
   MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, CFIndex value) override;
+  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;

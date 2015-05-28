@@ -36,6 +36,18 @@
     <ClCompile Include="SNIIS_Linux_Mouse.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="SNIIS_Mac.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Mac_Joystick.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Mac_Keyboard.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SNIIS_Mac_Mouse.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SNIIS_Intern.h">
@@ -51,6 +63,9 @@
       <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="SNIIS_Linux.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="SNIIS_Mac.h">
       <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>

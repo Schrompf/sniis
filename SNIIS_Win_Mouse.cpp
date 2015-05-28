@@ -11,8 +11,8 @@ using namespace SNIIS;
 WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle) 
   : Mouse( pId), mSystem( pSystem), mHandle( pHandle)
 {
-  mState.absX = mState.absY = mState.absWheel = 0;
-  mState.relX = mState.relY = mState.relWheel = 0;
+  mState.absX = mState.absY = mState.wheel = 0;
+  mState.relX = mState.relY = mState.prevWheel = 0;
   mState.buttons = mState.prevButtons = 0;
 
   // read initial position, assume single mouse mode
@@ -25,8 +25,9 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::StartUpdate()
 {
-  mState.relX = mState.relY = mState.relWheel = 0;
+  mState.relX = mState.relY = 0;
   mState.prevButtons = mState.buttons;
+  mState.prevWheel = mState.wheel; mState.wheel = 0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -54,8 +55,7 @@ void WinMouse::ParseMessage( const RAWINPUT& e)
   // Mouse wheel
   if( mouse.usButtonFlags & RI_MOUSE_WHEEL )
   {
-    mState.relWheel += (short) mouse.usButtonData;
-    mState.absWheel += mState.relWheel;
+    mState.wheel += (short) mouse.usButtonData;
   }
 
   // Movement
@@ -85,12 +85,6 @@ void WinMouse::ParseMessage( const RAWINPUT& e)
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::EndUpdate()
 {
-  bool mw_down = mState.relWheel < 0;
-  if( mw_down != ((mState.buttons & (1 << MB_WheelDown)) != 0) )
-    DoMouseClick( MB_WheelDown, mw_down);
-  bool mw_up = mState.relWheel > 0;
-  if( mw_up != ((mState.buttons & (1 << MB_WheelUp)) != 0) )
-    DoMouseClick( MB_WheelUp, mw_up);
 
   // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
@@ -108,6 +102,9 @@ void WinMouse::EndUpdate()
   // send the mouse move
   if( mState.relX != 0 || mState.relY != 0 )
     InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+  // send the mouse wheel
+  if( mState.wheel != mState.prevWheel )
+    InputSystemHelper::DoMouseWheel( this, float( mState.wheel));
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -173,7 +170,7 @@ std::string WinMouse::GetButtonText( size_t idx) const
 // --------------------------------------------------------------------------------------------------------------------
 size_t WinMouse::GetNumAxes() const
 {
-  return 2; // two axis: axis0 is horizontal mouse pos, axis1 is vertical mouse pos.
+  return 3; // axis0 is horizontal mouse pos, axis1 is vertical mouse pos, axis2 is mouse wheel
 }
 // --------------------------------------------------------------------------------------------------------------------
 std::string WinMouse::GetAxisText( size_t idx) const
@@ -211,6 +208,7 @@ float WinMouse::GetAxisAbsolute( size_t idx) const
   {
     case 0: return float( mState.absX);
     case 1: return float( mState.absY);
+    case 2: return float( mState.wheel);
     default: return 0.0f;
   }
 }
@@ -221,6 +219,7 @@ float WinMouse::GetAxisDifference( size_t idx) const
   {
     case 0: return float( mState.relX);
     case 1: return float( mState.relY);
+    case 2: return float( mState.wheel - mState.prevWheel);
     default: return 0.0f;
   }
 }

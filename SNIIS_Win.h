@@ -69,7 +69,7 @@ class WinMouse : public SNIIS::Mouse
   HANDLE mHandle;
   struct State 
   {
-    int absX, absY, absWheel, relX, relY, relWheel;
+    int absX, absY, relX, relY, wheel, prevWheel;
     uint32_t buttons, prevButtons;
   } mState;
 

@@ -202,8 +202,23 @@ size_t WinKeyboard::GetNumButtons() const
 // --------------------------------------------------------------------------------------------------------------------
 std::string WinKeyboard::GetButtonText( size_t idx) const
 {
-  return ""; // TODO: query DirectInput for names?
+	DIPROPSTRING prop;
+	prop.diph.dwSize = sizeof(DIPROPSTRING);
+	prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	prop.diph.dwObj = static_cast<DWORD>(idx); // the KeyCode enum was carefully crafted to fit the DirectInput keys
+	prop.diph.dwHow = DIPH_BYOFFSET;
+
+	if( FAILED( mKeyboard->GetProperty( DIPROP_KEYNAME, &prop.diph)) )
+    return "";
+
+  // convert the WCHAR in "wsz" to multibyte
+	char temp[256];
+	if( WideCharToMultiByte( CP_UTF8, 0, prop.wsz, -1, temp, sizeof(temp), NULL, NULL) <= 0 )
+		return "";
+  
+  return std::string( &temp[0]);
 }
+
 // --------------------------------------------------------------------------------------------------------------------
 bool WinKeyboard::IsButtonDown( size_t idx) const
 {

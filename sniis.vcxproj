@@ -17,6 +17,10 @@
     <ClCompile Include="SNIIS_Linux_Joystick.cpp" />
     <ClCompile Include="SNIIS_Linux_Keyboard.cpp" />
     <ClCompile Include="SNIIS_Linux_Mouse.cpp" />
+    <ClCompile Include="SNIIS_Mac.cpp" />
+    <ClCompile Include="SNIIS_Mac_Joystick.cpp" />
+    <ClCompile Include="SNIIS_Mac_Keyboard.cpp" />
+    <ClCompile Include="SNIIS_Mac_Mouse.cpp" />
     <ClCompile Include="SNIIS_Win.cpp" />
     <ClCompile Include="SNIIS_Win_Joystick.cpp" />
     <ClCompile Include="SNIIS_Win_Keyboard.cpp" />
@@ -27,6 +31,7 @@
     <ClInclude Include="SNIIS.h" />
     <ClInclude Include="SNIIS_Intern.h" />
     <ClInclude Include="SNIIS_Linux.h" />
+    <ClInclude Include="SNIIS_Mac.h" />
     <ClInclude Include="SNIIS_Win.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

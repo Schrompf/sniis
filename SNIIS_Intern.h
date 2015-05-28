@@ -19,6 +19,7 @@ namespace SNIIS
     static void DoMouseMove( Mouse* sender, int absx, int absy, int relx, int rely);
     static void DoMouseWheel( Mouse* sender, float diff);
     static void DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed);
+    static void DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed);
     static void DoJoystickAxis( Joystick* sender, size_t axisIndex, float value);
     static void DoJoystickButton( Joystick* sender, size_t btnIndex, bool isPressed);
     static void DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed);

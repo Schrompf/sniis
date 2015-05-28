@@ -52,8 +52,8 @@ void InputSystem::StartUpdate()
     krs.mTimeTillRepeat -= dt;
     if( krs.mTimeTillRepeat <= 0.0f )
     {
-      InputSystemHelper::DoKeyboardButton( krs.mSender, krs.mKeyCode, krs.mUnicodeChar, false);
-      InputSystemHelper::DoKeyboardButton( krs.mSender, krs.mKeyCode, krs.mUnicodeChar, true);
+      InputSystemHelper::DoKeyboardButtonIntern( krs.mSender, krs.mKeyCode, krs.mUnicodeChar, false);
+      InputSystemHelper::DoKeyboardButtonIntern( krs.mSender, krs.mKeyCode, krs.mUnicodeChar, true);
       krs.mTimeTillRepeat = std::max( 0.00001f, krs.mTimeTillRepeat + gInstance->mKeyRepeatCfg.interval);
     }
   }
@@ -364,7 +364,7 @@ void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t u
     gInstance->mKeyRepeatState.mUnicodeChar = unicode;
     gInstance->mKeyRepeatState.mTimeTillRepeat = gInstance->mKeyRepeatCfg.delay;
   }
-  else if( gInstance->mKeyRepeatState.mKeyCode == kc )
+  else if( !isPressed && gInstance->mKeyRepeatState.mKeyCode == kc )
   {
     gInstance->mKeyRepeatState.mKeyCode = KC_UNASSIGNED;
     gInstance->mKeyRepeatState.mSender = nullptr;
@@ -372,6 +372,13 @@ void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t u
     gInstance->mKeyRepeatState.mTimeTillRepeat = 0.0f;
   }
 
+  // and execute
+  DoKeyboardButtonIntern( sender, kc, unicode, isPressed);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void InputSystemHelper::DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
+{
   if( !gInstance->mHandler )
     return;
   if( gInstance->mHandler->OnKey( sender, kc, isPressed) )

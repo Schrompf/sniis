@@ -418,13 +418,16 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
       dch.mIsPressed = false;
       for( const auto& s : dch.mSources )
       {
+        auto dev = s.mDeviceId < gInstance->mDevices.size() ? gInstance->mDevices[s.mDeviceId] : nullptr;
+        if( !dev )
+          continue;
         if( s.mIsAnalog )
         {
-          float v = gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+          float v = dev->GetAxisAbsolute( s.mControlId);
           dch.mIsPressed = (s.mAnalogLimit < 0.0f ? (v < s.mAnalogLimit) : (v > s.mAnalogLimit));
         } else
         {
-          dch.mIsPressed = dch.mIsPressed || gInstance->mDevices[s.mDeviceId]->IsButtonDown( s.mControlId);
+          dch.mIsPressed = dch.mIsPressed || dev->IsButtonDown( s.mControlId);
         }
       }
 
@@ -451,17 +454,20 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
       ach.mValue = 0.0f;
       for( const auto& s : ach.mSources )
       {
+        auto dev = s.mDeviceId < gInstance->mDevices.size() ? gInstance->mDevices[s.mDeviceId] : nullptr;
+        if( !dev )
+          continue;
         switch( s.mType )
         {
           case AnalogChannel::Source_Digital:
-            ach.mValue += gInstance->mDevices[s.mDeviceId]->IsButtonDown( s.mControlId) ? s.mDigitalAmountOrAnalogLimit : 0.0f;
+            ach.mValue += dev->IsButtonDown( s.mControlId) ? s.mDigitalAmountOrAnalogLimit : 0.0f;
             break;
           case AnalogChannel::Source_Analog:
-            ach.mValue += gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+            ach.mValue += dev->GetAxisAbsolute( s.mControlId);
             break;
           case AnalogChannel::Source_LimitedAnalog:
           {
-            float v = gInstance->mDevices[s.mDeviceId]->GetAxisAbsolute( s.mControlId);
+            float v = dev->GetAxisAbsolute( s.mControlId);
             float l = s.mDigitalAmountOrAnalogLimit;
             bool isActive = (l != 0.0f ? (l < 0.0f ? (v < l) : (v > l)) : true);
             ach.mValue += isActive ? v * s.mAnalogScale : 0.0f;

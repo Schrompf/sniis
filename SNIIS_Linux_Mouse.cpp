@@ -11,7 +11,6 @@ using namespace SNIIS;
 LinuxMouse::LinuxMouse( LinuxInput* pSystem, size_t pId, const XIDeviceInfo& pDeviceInfo)
   : Mouse( pId), mSystem( pSystem), mDeviceId( pDeviceInfo.deviceid)
 {
-  mState.absWheel = mState.relWheel = 0;
   mState.buttons = mState.prevButtons = 0;
 
   // enumerate all controls on that device
@@ -31,22 +30,30 @@ LinuxMouse::LinuxMouse( LinuxInput* pSystem, size_t pId, const XIDeviceInfo& pDe
       {
         auto vcl = reinterpret_cast<const XIValuatorClassInfo*> (cl);
         size_t num = size_t( vcl->number);
+        // reserve axis 2 for mouse wheel
+        if( num >= 2 ) ++num;
         if( mAxes.size() <= num )
           mAxes.resize( num+1);
         mAxes[num] = Axis{ vcl->label, vcl->min, vcl->max, 0.0, 0.0, vcl->mode == XIModeAbsolute };
       }
     }
   }
+
+  // insert dummy mouse wheel axis
+  if( mAxes.size() < 3 )
+    mAxes.emplace_back();
+  mAxes[2] = Axis{ 0, 0, 256, 0.0, 0.0f, false };
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void LinuxMouse::StartUpdate()
 {
-  mState.relWheel = 0;
   mState.prevButtons = mState.buttons;
 
   for( auto& a : mAxes )
     a.prevValue = a.value;
+  // wheel axis is relative, shows movements only. So zero out for each frame and start accumulating differences anew
+  mAxes[2].value = 0.0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -84,7 +91,7 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
       if( button >= 4 && button <= 7 )
       {
         if( isPressed )
-          mState.relWheel += ((button&1) == 0 ? 1 : -1);
+          mState.wheel += ((button&1) == 0 ? 1 : -1);
       } else
       {
         --button;
@@ -102,16 +109,12 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
 // --------------------------------------------------------------------------------------------------------------------
 void LinuxMouse::EndUpdate()
 {
-  bool mw_down = mState.relWheel < 0;
-  if( mw_down != ((mState.buttons & (1 << MB_WheelDown)) != 0) )
-    DoMouseClick( MB_WheelDown, mw_down);
-  bool mw_up = mState.relWheel > 0;
-  if( mw_up != ((mState.buttons & (1 << MB_WheelUp)) != 0) )
-    DoMouseClick( MB_WheelUp, mw_up);
-
   // send the mouse move
   if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
     InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
+  // send the mouse wheel axis
+  if( mAxes[2].prevValue != mAxes[2].value )
+    InputSystemHelper::DoMouseWheel( this, mAxes[2].value);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

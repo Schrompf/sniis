@@ -59,7 +59,7 @@ class LinuxMouse : public SNIIS::Mouse
   std::vector<Axis> mAxes;
   struct State
   {
-    int absWheel, relWheel;
+    int wheel, prevWheel;
     uint32_t buttons, prevButtons;
   } mState;
 

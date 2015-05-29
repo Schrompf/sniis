@@ -217,6 +217,9 @@ void InputElementValueChangeCallback( void* ctx, IOReturn res, void* sender, IOH
   SNIIS_UNUSED( sender);
   if( res != kIOReturnSuccess )
     return;
+  //also ignore all events if we ain't focus'd. Did I use that word correctly?
+  if( !gInstance->HasFocus() )
+    return;
 
   auto dev = static_cast<MacDevice*> (ctx);
   auto elm = IOHIDValueGetElement( val);

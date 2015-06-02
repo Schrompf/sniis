@@ -90,18 +90,28 @@ void WinInput::EnumerateDevices()
         // on many systems there are ghost mice for Remote Desktop programs. We filter those out.
         if( name.find( "RDP_") == std::string::npos )
         {
-          auto m = new WinMouse( this, mDevices.size(), dev.hDevice);
-          InputSystemHelper::AddDevice( m);
-          mMice[dev.hDevice] = m;
+          try {
+            auto m = new WinMouse( this, mDevices.size(), dev.hDevice);
+            InputSystemHelper::AddDevice( m);
+            mMice[dev.hDevice] = m;
+          } catch( std::exception& )
+          {
+            // TODO: invent logging
+          }
         }
         break;
       case RIM_TYPEKEYBOARD: 
         // there are also ghost keyboards from Remote desktop programs
         if( name.find( "RDP_") == std::string::npos )
         {
-          auto k = new WinKeyboard( this, mDevices.size(), dev.hDevice, mKeyboard);
-          InputSystemHelper::AddDevice( k);
-          mKeyboards[dev.hDevice] = k;
+          try {
+            auto k = new WinKeyboard( this, mDevices.size(), dev.hDevice, mKeyboard);
+            InputSystemHelper::AddDevice( k);
+            mKeyboards[dev.hDevice] = k;
+          } catch( std::exception& )
+          {
+            // TODO: invent logging
+          }
         }
         break;
       case RIM_TYPEHID: 
@@ -123,7 +133,13 @@ int CALLBACK WinInput::_DIEnumDevCallback(LPCDIDEVICEINSTANCE lpddi, LPVOID pvRe
 	if( dt == DI8DEVTYPE_JOYSTICK || dt == DI8DEVTYPE_GAMEPAD || dt == DI8DEVTYPE_1STPERSON || 
       dt == DI8DEVTYPE_DRIVING || dt == DI8DEVTYPE_FLIGHT )
 	{
-    InputSystemHelper::AddDevice( new WinJoystick( _this_, _this_->mDevices.size(), _this_->mDirectInput, lpddi->guidInstance, lpddi->guidProduct));
+    try {
+      auto j = new WinJoystick( _this_, _this_->mDevices.size(), _this_->mDirectInput, lpddi->guidInstance, lpddi->guidProduct);
+      InputSystemHelper::AddDevice( j);
+    } catch( std::exception& )
+    {
+      // TODO: invent logging
+    }
 	}
 
 	return DIENUM_CONTINUE;

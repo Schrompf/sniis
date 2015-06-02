@@ -136,18 +136,28 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
     case kHIDUsage_GD_Mouse:
     case kHIDUsage_GD_Pointer:
     {
-      auto m = new MacMouse( this, mDevices.size(), device);
-      InputSystemHelper::AddDevice( m);
-      mMacDevices.push_back( m);
+      try {
+        auto m = new MacMouse( this, mDevices.size(), device);
+        InputSystemHelper::AddDevice( m);
+        mMacDevices.push_back( m);
+      } catch( std::exception& )
+      {
+        // TODO: invent logging
+      }
       break;
     }
 
     case kHIDUsage_GD_Keyboard:
     case kHIDUsage_GD_Keypad:
     {
-      auto k = new MacKeyboard( this, mDevices.size(), device);
-      InputSystemHelper::AddDevice( k);
-      mMacDevices.push_back( k);
+      try {
+        auto k = new MacKeyboard( this, mDevices.size(), device);
+        InputSystemHelper::AddDevice( k);
+        mMacDevices.push_back( k);
+      } catch( std::exception& )
+      {
+        // TODO: invent logging
+      }
       break;
     }
 
@@ -155,9 +165,14 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
     case kHIDUsage_GD_GamePad:
     case kHIDUsage_GD_MultiAxisController:
     {
-      auto j = new MacJoystick( this, mDevices.size(), device);
-      InputSystemHelper::AddDevice( j);
-      mMacDevices.push_back( j);
+      try {
+        auto j = new MacJoystick( this, mDevices.size(), device);
+        InputSystemHelper::AddDevice( j);
+        mMacDevices.push_back( j);
+      } catch( std::exception& )
+      {
+        // TODO: invent logging
+      }
       break;
     }
   }

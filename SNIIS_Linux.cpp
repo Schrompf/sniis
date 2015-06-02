@@ -66,9 +66,15 @@ LinuxInput::LinuxInput( Window wnd)
         // a mouse. probably. Ignore some common pffft cases
         if( strstr(devices[i].name, "XTEST") != nullptr )
           break;
-        auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
-        InputSystemHelper::AddDevice( m);
-        mMiceById[devices[i].deviceid] = m;
+
+        try {
+          auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
+          InputSystemHelper::AddDevice( m);
+          mMiceById[devices[i].deviceid] = m;
+        } catch( std::exception& )
+        {
+          // TODO: invent logging
+        }
         break;
       }
 
@@ -77,9 +83,15 @@ LinuxInput::LinuxInput( Window wnd)
         // a keyboard
         if( strstr(devices[i].name, "XTEST") != nullptr )
           break;
-        auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
-        InputSystemHelper::AddDevice( k);
-        mKeyboardsById[devices[i].deviceid] = k;
+
+        try {
+          auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
+          InputSystemHelper::AddDevice( k);
+          mKeyboardsById[devices[i].deviceid] = k;
+        } catch( std::exception& )
+        {
+          // TODO: invent logging
+        }
         break;
       }
 
@@ -138,8 +150,13 @@ LinuxInput::LinuxInput( Window wnd)
 
       if( isController )
       {
-        auto j = new LinuxJoystick( this, mDevices.size(), fd);
-        InputSystemHelper::AddDevice( j);
+        try {
+          auto j = new LinuxJoystick( this, mDevices.size(), fd);
+          InputSystemHelper::AddDevice( j);
+        } catch( std::exception& )
+        {
+          // TODO: invent logging
+        }
       } else
       {
         close( fd);

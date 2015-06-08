@@ -72,6 +72,47 @@ void InputSystem::EndUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+// Notifies the input system that the application has lost/gained focus.
+void InputSystem::SetFocus( bool pHasFocus)
+{
+  if( pHasFocus == mHasFocus )
+    return;
+  mHasFocus = pHasFocus;
+  InternSetFocus( pHasFocus);
+  InternGrabMouseIfNecessary();
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Enables or disables multi-mice mode.
+void InputSystem::SetMultiMouseMode( bool enabled)
+{
+  if( enabled == mIsInMultiMouseMode )
+    return;
+  mIsInMultiMouseMode = enabled;
+  InternGrabMouseIfNecessary();
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Enables or disables Mouse Grabbing. 
+void InputSystem::SetMouseGrab( bool enabled)
+{
+  if( enabled == mIsMouseGrabEnabled )
+    return;
+  mIsMouseGrabEnabled = enabled;
+  InternGrabMouseIfNecessary(); 
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void InputSystem::InternGrabMouseIfNecessary()
+{
+  bool necessary = mIsMouseGrabEnabled && mHasFocus && !mIsInMultiMouseMode;
+  if( necessary == mIsMouseGrabbed )
+    return;
+  mIsMouseGrabbed = necessary;
+  InternSetMouseGrab( necessary);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 // Gets the nth device of that specific kind
 Mouse* InputSystem::GetMouseByCount(size_t pNumber) const
 {

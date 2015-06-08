@@ -377,17 +377,39 @@ public:
   virtual void EndUpdate();
 
   /// Notifies the input system that the application has lost/gained focus. This avoids sticky keys where the PRESS msg
-  /// was received but the RELEASE msg was not. Plus some OSes just keep sending input events regardless of focus.
-  virtual void SetFocus( bool pHasFocus) = 0;
+  /// was received but the RELEASE msg was not. Plus some OSes just keep sending input events regardless of focus; we
+  /// want to avoid interacting with things in the game while it's in background.
+  void SetFocus( bool pHasFocus);
+  /// Returns if the input system is acting as if it's focused. Strange wording, I know, but it's set from the outside only.
   bool HasFocus() const { return mHasFocus; }
+
+  /// Enables or disables multi-mice mode. In Single mode all mice draw their state from the global OS state and thus
+  /// match the expected movement exactly. In Multi mode, some local API is used instead which lacks any Mouse speed and 
+  /// acceleration setting, therefore the mouse might move differently than what the user expects.
+  void SetMultiMouseMode( bool enabled);
+  /// Returns whether MultiMouseMode is currently enabled.
+  bool IsInMultiMouseMode() const { return mIsInMultiMouseMode; }
+
+  /// Enables or disables Mouse Grabbing. If not grabbed, the mouse can leave the window or maybe activate things 
+  /// in the background on Linux. This also activates the per-frame center code which keeps the mouse in the middle of
+  /// the window. This is necessary to get correct relative mouse movements in SingleMouseMode because the mouse would
+  /// otherwise hit the screen border and would therefore stop reporting further relative movements.
+  /// Mouse grabbing is automatically disabled when 1) Focus is lost or 2) MultiMouseMode is enabled; and is reenabled
+  /// automatically in those cases.
+  void SetMouseGrab( bool enabled);
+  /// Returns if MouseGrabMode is currently enabled. This does NOT imply that the mouse is actually grabbed.
+  bool IsMouseGrabEnabled() const { return mIsMouseGrabEnabled; }
+  /// Returns if the mouse is currently grabbed.
+  bool IsMouseGrabbed() const { return mIsMouseGrabbed; }
 
 #if SNIIS_SYSTEM_WINDOWS
   /// on Windows, hand WM_INPUT messages to it from your message queue
   virtual void HandleWinMessage(uint32_t message, size_t lParam, size_t wParam) = 0;
-#elif SNIIS_SYSTEM_LINUX
-  /// Handles an XEvent - pass a pointer to the XEvent structure read by XNextEvent()
-//  virtual void HandleXEvent( void* xevent);
 #endif
+
+  /// Event handler to be called on input events.
+  InputHandler* GetHandler() const { return mHandler; }
+  void SetHandler( InputHandler* handler) { mHandler = handler; }
 
   /// Returns all devices currently present
   const std::vector<Device*>& GetDevices() const { return mDevices; }
@@ -399,17 +421,6 @@ public:
   Mouse* GetMouseByCount( size_t pNumber) const;
   Keyboard* GetKeyboardByCount( size_t pNumber) const;
   Joystick* GetJoystickByCount( size_t pNumber) const;
-
-  /// Event handler to be called on input events.
-  InputHandler* GetHandler() const { return mHandler; }
-  void SetHandler( InputHandler* handler) { mHandler = handler; }
-
-  /// Enables or disables multi-mice mode. In Single mode all mice draw their state from the global Windows state and thus
-  /// match the expected movement exactly. In Multi mode, RawInput is used instead which lacks any Mouse speed and acceleration
-  /// setting, therefore the mouse might move differently than what the user expects.
-  virtual void SetMultiMouseMode( bool enabled) { mIsInMultiMouseMode = enabled; }
-  /// Returns whether MultiMouseMode is currently enabled.
-  bool IsInMultiMouseMode() const { return mIsInMultiMouseMode; }
 
   /// Comfort functions to query the current state of the input system and the changes since the last call to Update()
   /// All functions query the first device of its kind only.
@@ -446,6 +457,11 @@ public:
   void ClearChannelAssignments();
 
 protected:
+  virtual void InternSetFocus( bool pHasFocus) = 0;
+  void InternGrabMouseIfNecessary();
+  virtual void InternSetMouseGrab( bool enabled) = 0;
+
+protected:
   std::vector<Device*> mDevices;
   Mouse* mFirstMouse; Keyboard* mFirstKeyboard; Joystick* mFirstJoystick;
   size_t mNumMice, mNumKeyboards, mNumJoysticks;
@@ -453,6 +469,7 @@ protected:
   InputHandler* mHandler;
   bool mHasFocus;
   bool mIsInMultiMouseMode;
+  bool mIsMouseGrabEnabled, mIsMouseGrabbed;
 
   KeyRepeatCfg mKeyRepeatCfg;
   struct KeyRepeatState {

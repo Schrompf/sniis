@@ -90,13 +90,32 @@ void WinMouse::EndUpdate()
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
   if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() )
   {
-    POINT point;
-    GetCursorPos(&point);
-    ScreenToClient( mSystem->GetWindowHandle(), &point);
-    int prevAbsX = mState.absX, prevAbsY = mState.absY;
-    mState.absX = point.x; mState.absY = point.y;
-    mState.relX = mState.absX - prevAbsX;
-    mState.relY = mState.absY - prevAbsY;
+    POINT currMousePos;
+    GetCursorPos( &currMousePos);
+    ScreenToClient( mSystem->GetWindowHandle(), &currMousePos);
+    // if mouse is grabbed, accumulate offset from center and then move pointer back to that center
+    if( currMousePos.x >= 0 && currMousePos.y >= 0 && currMousePos.x < 20000 && currMousePos.y < 20000 )
+    {
+      if( mSystem->IsMouseGrabbed() )
+      {
+        RECT rect;
+        GetWindowRect( mSystem->GetWindowHandle(), &rect);
+        POINT wndCenterPos = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
+        mState.relX = currMousePos.x - wndCenterPos.x;
+        mState.relY = currMousePos.y - wndCenterPos.y;
+        mState.absX += mState.relX; mState.absY += mState.relY;
+        ClientToScreen( mSystem->GetWindowHandle(), &wndCenterPos);
+        SetCursorPos( wndCenterPos.x, wndCenterPos.y);
+      } else
+      {
+        // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the 
+        // global mouse movement to get expected mouse acceleration and such at least.
+        int prevAbsX = mState.absX, prevAbsY = mState.absY;
+        mState.absX = currMousePos.x; mState.absY = currMousePos.y;
+        mState.relX = mState.absX - prevAbsX;
+        mState.relY = mState.absY - prevAbsY;
+      }
+    }
   }
 
   // send the mouse move
@@ -144,10 +163,8 @@ void WinMouse::SetFocus( bool pHasFocus)
 void WinMouse::DoMouseClick( int mouseButton, bool isDown )
 {
   // in single mouse mode, redirect click to main mouse
-  // actually: don't. It would only allow clicking with all mice the user has, which is an unlikely usecase IMO. But
-  // it opens a new range of state mixup when switching Single/Multi Mouse mode while a button is down. Isn't worth it.
-//  if( !mSystem->IsInMultiMouseMode() && mCount != 0 )
-//    return static_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseClick( mouseButton, isDown);
+  if( !mSystem->IsInMultiMouseMode() && mCount != 0 )
+    return static_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseClick( mouseButton, isDown);
 
   if( isDown )
 	  mState.buttons |= 1 << mouseButton; 

@@ -49,14 +49,12 @@ public:
   void CheckXInputDevices();
   void RegisterForRawInput();
 
-  /// Starts the update, to be called before handling system messages
   void StartUpdate() override;
-  /// Handles a windows message relevant to Input.
   void HandleWinMessage( uint32_t message, size_t lParam, size_t wParam) override;
-  /// Ends the update, to be called after handling system messages
   void EndUpdate() override;
-  /// Notifies the input system that the application has lost/gained focus.
-  void SetFocus(bool pHasFocus) override;
+
+  void InternSetFocus( bool pHasFocus) override;
+  void InternSetMouseGrab( bool enabled) override;
 
   HWND GetWindowHandle() const { return hWnd; }
 };

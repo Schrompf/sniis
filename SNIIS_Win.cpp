@@ -344,12 +344,8 @@ void WinInput::EndUpdate()
 
 // --------------------------------------------------------------------------------------------------------------------
 // Notifies the input system that the application has lost/gained focus.
-void WinInput::SetFocus( bool pHasFocus)
+void WinInput::InternSetFocus( bool pHasFocus)
 {
-  if( pHasFocus == mHasFocus )
-    return;
-
-  mHasFocus = pHasFocus;
   for( auto d : mDevices )
   {
     if( auto k = dynamic_cast<WinKeyboard*> (d) )
@@ -359,6 +355,25 @@ void WinInput::SetFocus( bool pHasFocus)
     else if( auto j = dynamic_cast<WinJoystick*> (d) )
       j->SetFocus( mHasFocus);
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinInput::InternSetMouseGrab( bool enabled)
+{
+  RECT rect;
+  GetWindowRect( hWnd, &rect);
+  POINT pt;
+  if( enabled )
+  {
+    // if enabled, move system mouse to window center and start taking offsets from there
+    pt = POINT{ (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
+  } else
+  {
+    // if disabled, move mouse to last reported mouse position to achieve a smooth non-jumpy transition between the modes
+    pt = POINT{ std::max( 0, std::min( int( rect.right - rect.left), GetMouseX())), std::max( 0, std::min( int( rect.bottom - rect.top), GetMouseY())) };
+  }
+  ClientToScreen( hWnd, &pt);
+  SetCursorPos( pt.x, pt.y);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

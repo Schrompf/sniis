@@ -42,7 +42,8 @@ public:
   /// Ends the update, to be called after handling system messages
   void EndUpdate() override;
   /// Notifies the input system that the application has lost/gained focus.
-  void SetFocus(bool pHasFocus) override;
+  void InternSetFocus( bool pHasFocus) override;
+  void InternSetMouseGrab( bool enabled) override;
 
   Display* GetDisplay() const { return mDisplay; }
 };

@@ -254,12 +254,8 @@ void LinuxInput::EndUpdate()
 
 // --------------------------------------------------------------------------------------------------------------------
 // Notifies the input system that the application has lost/gained focus.
-void LinuxInput::SetFocus( bool pHasFocus)
+void LinuxInput::InternSetFocus( bool pHasFocus)
 {
-  if( pHasFocus == mHasFocus )
-    return;
-
-  mHasFocus = pHasFocus;
   for( auto d : mDevices )
   {
     if( auto k = dynamic_cast<LinuxKeyboard*> (d) )
@@ -268,6 +264,20 @@ void LinuxInput::SetFocus( bool pHasFocus)
       m->SetFocus( mHasFocus);
     else if( auto j = dynamic_cast<LinuxJoystick*> (d) )
       j->SetFocus( mHasFocus);
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxInput::InternSetMouseGrab( bool enabled)
+{
+  // The Linux XInput2 API is nice to already provide mouse acceleration and all, so all that mouse coordinate cheating
+  // is simply not necessary. Just grab the mouse and be happy
+  if( enabled )
+  {
+    XGrabPointer( mDisplay, mWindow, True, 0, GrabModeAsync, GrabModeAsync, mWindow, None, CurrentTime);
+  } else
+  {
+    XUngrabPointer( mDisplay, CurrentTime);
   }
 }
 

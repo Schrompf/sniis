@@ -6,6 +6,7 @@
 
 #if SNIIS_SYSTEM_LINUX
 using namespace SNIIS;
+#include "../Traumklassen/TraumBasis.h"
 
 #include <cstring>
 #include <sstream>
@@ -63,6 +64,8 @@ LinuxInput::LinuxInput( Window wnd)
       case XISlavePointer:
       case XIFloatingSlave:
       {
+        Traum::Konsole.Log( "Mouse %d (id %d) - \"%s\"", mNumMice, mDevices.size(), devices[i].name);
+
         // a mouse. probably. Ignore some common pffft cases
         if( strstr(devices[i].name, "XTEST") != nullptr )
           break;
@@ -71,15 +74,17 @@ LinuxInput::LinuxInput( Window wnd)
           auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
           InputSystemHelper::AddDevice( m);
           mMiceById[devices[i].deviceid] = m;
-        } catch( std::exception& )
+        } catch( std::exception& e)
         {
           // TODO: invent logging
+          Traum::Konsole.Log( "Exception: %s", e.what());
         }
         break;
       }
 
       case XISlaveKeyboard:
       {
+        Traum::Konsole.Log( "Keyboard %d (id %d) - \"%s\"", mNumKeyboards, mDevices.size(), devices[i].name);
         // a keyboard
         if( strstr(devices[i].name, "XTEST") != nullptr )
           break;
@@ -88,9 +93,10 @@ LinuxInput::LinuxInput( Window wnd)
           auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
           InputSystemHelper::AddDevice( k);
           mKeyboardsById[devices[i].deviceid] = k;
-        } catch( std::exception& )
+        } catch( std::exception& e)
         {
           // TODO: invent logging
+          Traum::Konsole.Log( "Exception: %s", e.what());
         }
         break;
       }
@@ -114,6 +120,12 @@ LinuxInput::LinuxInput( Window wnd)
 		int fd = open( eventPath.str().c_str(), O_RDWR |O_NONBLOCK );
 		if( fd == -1 )
 			continue;
+
+    char tmp[256] = "Unknown";
+    if( ioctl( fd, EVIOCGNAME( sizeof( tmp)), tmp) < 0)
+      throw std::runtime_error( "Could not read device name");
+
+    Traum::Konsole.Log( "Controller %d (id %d) - \"%s\"", mNumJoysticks, mDevices.size(), &tmp[0]);
 
     // check if it's a controller. If we're started with root privileges, we'd get mice and keyboards here, too,
     // but we can't rely on it, so we sort those out and only use it for controllers.
@@ -153,9 +165,10 @@ LinuxInput::LinuxInput( Window wnd)
         try {
           auto j = new LinuxJoystick( this, mDevices.size(), fd);
           InputSystemHelper::AddDevice( j);
-        } catch( std::exception& )
+        } catch( std::exception& e)
         {
           // TODO: invent logging
+          Traum::Konsole.Log( "Exception: %s", e.what());
         }
       } else
       {
@@ -181,7 +194,7 @@ LinuxInput::~LinuxInput()
 void LinuxInput::Update()
 {
   // Basis work
-  InputSystem::StartUpdate();
+  InputSystem::Update();
 
   // begin updating all devices
   for( auto d : mDevices )

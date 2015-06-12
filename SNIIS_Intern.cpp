@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include "../Traumklassen/TraumBasis.h"
+
 using namespace SNIIS;
 
 /// global Instance of the Input System if initialized, or Null
@@ -87,13 +89,13 @@ void InputSystem::SetMultiMouseMode( bool enabled)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Enables or disables Mouse Grabbing. 
+// Enables or disables Mouse Grabbing.
 void InputSystem::SetMouseGrab( bool enabled)
 {
   if( enabled == mIsMouseGrabEnabled )
     return;
   mIsMouseGrabEnabled = enabled;
-  InternGrabMouseIfNecessary(); 
+  InternGrabMouseIfNecessary();
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -550,6 +552,8 @@ void InputSystemHelper::MakeThisMouseFirst( Mouse* mouse)
     gInstance->mReorderMiceOnActivity = false;
     if( mouse != gInstance->mFirstMouse )
     {
+      Traum::Konsole.Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, gInstance->mFirstMouse->mId, gInstance->mFirstMouse->mCount);
+
       std::swap( mouse->mId, gInstance->mFirstMouse->mId);
       std::swap( mouse->mCount, gInstance->mFirstMouse->mCount);
       auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstMouse));
@@ -569,6 +573,9 @@ void InputSystemHelper::MakeThisKeyboardFirst( Keyboard* keyboard)
     gInstance->mReorderKeyboardsOnActivity = false;
     if( keyboard != gInstance->mFirstKeyboard )
     {
+      Traum::Konsole.Log( "Swap keyboards due to activity: %d,%d and %d,%d",
+        keyboard->mId, keyboard->mCount, gInstance->mFirstKeyboard->mId, gInstance->mFirstKeyboard->mCount);
+
       std::swap( keyboard->mId, gInstance->mFirstKeyboard->mId);
       std::swap( keyboard->mCount, gInstance->mFirstKeyboard->mCount);
       auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstKeyboard));

@@ -37,10 +37,8 @@ public:
   /// Destructor
   ~LinuxInput();
 
-  /// Starts the update, to be called before handling system messages
-  void StartUpdate() override;
-  /// Ends the update, to be called after handling system messages
-  void EndUpdate() override;
+  /// Updates the inputs, to be called before handling system messages
+  void Update() override;
   /// Notifies the input system that the application has lost/gained focus.
   void InternSetFocus( bool pHasFocus) override;
   void InternSetMouseGrab( bool enabled) override;

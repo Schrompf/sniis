@@ -50,8 +50,8 @@ MacInput::~MacInput()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Starts the update, to be called before handling system messages
-void MacInput::StartUpdate()
+// Updates the inputs, to be called before handling system messages
+void MacInput::Update()
 {
   // Basis work
   InputSystem::StartUpdate();
@@ -66,14 +66,6 @@ void MacInput::StartUpdate()
   // then run the update loop
   while( CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, TRUE) == kCFRunLoopRunHandledSource )
     /**/;
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Ends the update, to be called after handling system messages
-void MacInput::EndUpdate()
-{
-  // base work
-  InputSystem::EndUpdate();
 
   // Mice need postprocessing
   for( auto d : mMacDevices )

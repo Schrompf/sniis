@@ -18,33 +18,15 @@ extern "C" void SNIIS_Shutdown()
   SNIIS::InputSystem::Shutdown();
 }
 
-// Per-frame update cycle: starts the input processing
-extern "C" void SNIIS_StartUpdate()
+// Per-frame update cycle: does the input processing. To be called before the message loop
+extern "C" void SNIIS_InputSystem_Update()
 {
   if( SNIIS::gInstance )
-    SNIIS::gInstance->StartUpdate();
+    SNIIS::gInstance->Update();
 }
-
-// Per-frame update cycle: ends the input processing
-extern "C" void SNIIS_EndUpdate()
-{
-  if( SNIIS::gInstance )
-    SNIIS::gInstance->EndUpdate();
-}
-
-// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling 
-// system messages, then finally call EndUpdate();
-#if SNIIS_SYSTEM_WINDOWS
-extern "C" void SNIIS_HandleWinMessage( uint32_t message, size_t lParam, size_t wParam)
-{
-  if( SNIIS::gInstance )
-    SNIIS::gInstance->HandleWinMessage( message, lParam, wParam);
-}
-#elif SNIIS_SYSTEM_LINUX
-#endif
 
 // Notifies SNIIS about focus loss/gain. Non-Zero for focus gain, zero for focus loss
-extern "C" void SNIIS_SetFocus( int pFocus)
+extern "C" void SNIIS_InputSystem_SetFocus( int pFocus)
 {
   if( SNIIS::gInstance )
     SNIIS::gInstance->SetFocus( pFocus != 0);

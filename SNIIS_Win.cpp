@@ -20,11 +20,31 @@ WinInput::WinInput( HWND wnd)
   hWnd = wnd;
   mDirectInput = nullptr;
   mKeyboard = nullptr;
+  mIsWorkAroundEnabled = false;
 
 	if( IsWindow(hWnd) == 0 )
 		throw std::runtime_error( "HWND is not valid");
 
+  // workaround for GetRawInputBuffer() writing misaligned structures when being a 32bit exe running on a 64bit Windows
+  {
+    typedef BOOL (WINAPI *IsWow64Process) (HANDLE, PBOOL);
+    IsWow64Process isWow64Process = nullptr;
+    isWow64Process = (IsWow64Process) GetProcAddress( GetModuleHandle( TEXT("kernel32")), "IsWow64Process");
+    if( nullptr != isWow64Process )
+    {
+      BOOL isit = FALSE;
+      if( isWow64Process( GetCurrentProcess(), &isit) )
+        mIsWorkAroundEnabled = (isit != FALSE);
+    }
+  }
+
+  // reroute the WinProc through our function to catch ALL RawInput messages. It got obvious that using buffered reads
+  // on RawInput is useless; the application's message loop still caught a few RawInput messages and discarded those.
+  // This approach is now hopefully reliable enough to catch all messages without losses, while still not interfering
+  // with the game's message loop
+
 	HINSTANCE hInst = GetModuleHandle(0);
+  mPreviousWndProc = (WNDPROC) SetWindowLongPtrW( hWnd, GWL_WNDPROC, (LONG) &WinInput::WndProcHook);
 
 	//Create the device
 	HRESULT hr = DirectInput8Create( hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (VOID**)&mDirectInput, nullptr );
@@ -273,10 +293,10 @@ void WinInput::RegisterForRawInput()
 
 // --------------------------------------------------------------------------------------------------------------------
 // Starts the update, to be called before handling system messages
-void WinInput::StartUpdate()
+void WinInput::Update()
 {
   // Basis work
-  InputSystem::StartUpdate();
+  InputSystem::Update();
 
   // begin updating all devices
   for( auto d : mDevices )
@@ -288,51 +308,35 @@ void WinInput::StartUpdate()
     else if( auto joy = dynamic_cast<WinJoystick*> (d) )
       joy->StartUpdate();
   }
-}
 
-// --------------------------------------------------------------------------------------------------------------------
-// Handles a windows message relevant to Input.
-void WinInput::HandleWinMessage( uint32_t message, size_t lParam, size_t wParam)
-{
-  // there shouldn't be any event if we have no focus, but anyways...
-  if( !HasFocus() )
-    return;
-
-  // distribute RawInput event
-  switch( message )
+  // read raw input 
+  while( false )
   {
-    case WM_INPUT:
-    {
-      uint8_t buf[256];
-      UINT sz = sizeof( buf);
-      sz = GetRawInputData( (HRAWINPUT) lParam, RID_INPUT, buf, &sz, sizeof( RAWINPUTHEADER));
-      if( sz != std::numeric_limits<decltype(sz)>::max() )
-      {
-        auto inp = reinterpret_cast<const RAWINPUT*> (&buf[0]);
-        if( inp->header.dwType == RIM_TYPEKEYBOARD )
-        {
-          auto it = mKeyboards.find( inp->header.hDevice);
-          if( it != mKeyboards.end() )
-            it->second->ParseMessage( *inp);
-        }
-        else if( inp->header.dwType == RIM_TYPEMOUSE )
-        {
-          auto it = mMice.find( inp->header.hDevice);
-          if( it != mMice.end() )
-            it->second->ParseMessage( *inp);
-        }
-      }
+    uint8_t buf[800];
+    // align it to 16 bytes. Probably useless, the actual bug was in the RAWINPUT structure itsself
+    RAWINPUT* rib = (RAWINPUT*) (&buf[0] + ((16 - (size_t(&buf[0]) & 15)) & 15));
+    uint32_t size = sizeof( buf) - 16;
+    auto num = GetRawInputBuffer( rib, &size, sizeof( RAWINPUTHEADER));
+    if( num == 0 )
       break;
+    for( uint32_t a = 0; a < num; ++a )
+    {
+      if( rib->header.dwType == RIM_TYPEKEYBOARD )
+      {
+        auto it = mKeyboards.find( rib->header.hDevice);
+        if( it != mKeyboards.end() )
+          it->second->ParseMessage( *rib, mIsWorkAroundEnabled);
+      }
+      else if( rib->header.dwType == RIM_TYPEMOUSE )
+      {
+        auto it = mMice.find( rib->header.hDevice);
+        if( it != mMice.end() )
+          it->second->ParseMessage( *rib, mIsWorkAroundEnabled);
+      }
+
+      rib = NEXTRAWINPUTBLOCK( rib);
     }
   }
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Ends the update, to be called after handling system messages
-void WinInput::EndUpdate()
-{
-  // base work
-  InputSystem::EndUpdate();
 
   // update postprocessing, currently mice only
   for( auto d : mDevices )
@@ -374,6 +378,38 @@ void WinInput::InternSetMouseGrab( bool enabled)
   }
   ClientToScreen( hWnd, &pt);
   SetCursorPos( pt.x, pt.y);
+}
+
+LRESULT CALLBACK WinInput::WndProcHook( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+  auto that = reinterpret_cast<WinInput*> (SNIIS::gInstance);
+  if( msg == WM_INPUT )
+  {
+    uint8_t buf[256];
+    UINT sz = sizeof( buf);
+    sz = GetRawInputData( (HRAWINPUT) lparam, RID_INPUT, buf, &sz, sizeof( RAWINPUTHEADER));
+    if( sz != std::numeric_limits<decltype(sz)>::max() )
+    {
+      auto inp = reinterpret_cast<const RAWINPUT*> (&buf[0]);
+      if( inp->header.dwType == RIM_TYPEKEYBOARD )
+      {
+        auto it = that->mKeyboards.find( inp->header.hDevice);
+        if( it != that->mKeyboards.end() )
+          it->second->ParseMessage( *inp, false);
+      }
+      else if( inp->header.dwType == RIM_TYPEMOUSE )
+      {
+        auto it = that->mMice.find( inp->header.hDevice);
+        if( it != that->mMice.end() )
+          it->second->ParseMessage( *inp, false);
+      }
+    }
+    return 0;
+  }
+  else
+  {
+    return CallWindowProcW( that->mPreviousWndProc, hwnd, msg, wparam, lparam);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

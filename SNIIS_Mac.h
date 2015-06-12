@@ -26,8 +26,7 @@ public:
   MacInput();
   ~MacInput();
 
-  void StartUpdate() override;
-  void EndUpdate() override;
+  void Update() override;
   void SetFocus(bool pHasFocus) override;
 protected:
   static void HandleNewDeviceCallback( void* context, IOReturn result, void* sender, IOHIDDeviceRef device);

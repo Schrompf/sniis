@@ -30,6 +30,12 @@ class WinInput : public SNIIS::InputSystem
   /// The window handle we are using
 	HWND hWnd;
 
+  /// The old WndProc before we intercepted it
+  WNDPROC mPreviousWndProc;
+
+  /// workaround for buggy RawInput implementation: true if our process runs translated via WoW64 (Windows on Windows)
+  bool mIsWorkAroundEnabled;
+
 	/// Direct Input Interface for the devices being handled by DI
 	IDirectInput8* mDirectInput;
   IDirectInputDevice8* mKeyboard;
@@ -49,14 +55,15 @@ public:
   void CheckXInputDevices();
   void RegisterForRawInput();
 
-  void StartUpdate() override;
-  void HandleWinMessage( uint32_t message, size_t lParam, size_t wParam) override;
-  void EndUpdate() override;
+  void Update() override;
+
+  static LRESULT CALLBACK WndProcHook( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
   void InternSetFocus( bool pHasFocus) override;
   void InternSetMouseGrab( bool enabled) override;
 
   HWND GetWindowHandle() const { return hWnd; }
+  bool IsWorkAroundEnabled() const { return mIsWorkAroundEnabled; }
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -75,7 +82,7 @@ public:
   WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle);
 
   void StartUpdate();
-  void ParseMessage( const RAWINPUT& e);
+  void ParseMessage( const RAWINPUT& e, bool useWorkaround);
   void EndUpdate();
   void SetFocus( bool pHasFocus);
 
@@ -111,7 +118,7 @@ public:
   WinKeyboard( WinInput* pSystem, size_t pId, HANDLE pHandle, IDirectInputDevice8* pDirectInputKeyboard);
 
   void StartUpdate();
-  void ParseMessage( const RAWINPUT& e);
+  void ParseMessage( const RAWINPUT& e, bool useWorkaround);
   void SetFocus( bool pHasFocus);
 
   size_t GetNumButtons() const override;

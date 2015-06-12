@@ -22,11 +22,15 @@ void WinKeyboard::StartUpdate()
   memcpy( mPrevState, mState, sizeof( mState));
 }
 
-void WinKeyboard::ParseMessage( const RAWINPUT& e)
+void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 {
   // safety measure - should not reach us if it's not for us
   assert( e.header.dwType == RIM_TYPEKEYBOARD && e.header.hDevice == mHandle );
-  const auto& kbd = e.data.keyboard;
+  // work around for GetRawInputBuffer() bug on WoW64
+  auto ptr = reinterpret_cast<const uint8_t*> (&e.data.keyboard);
+  if( useWorkaround )
+    ptr += 8;
+  const auto& kbd = *(reinterpret_cast<const RAWKEYBOARD*> (ptr));
 
   size_t scanCode = kbd.MakeCode;
   size_t virtualKey = kbd.VKey;

@@ -1,5 +1,5 @@
 /** @file SNIIS.h
- * Basic C interface. Currently only implements creating and feeding it, but lacks any support for actual input processing
+ * Basic C interface. Currently very lacking.
  */
 
 #pragma once
@@ -21,24 +21,18 @@
 extern "C" {
 #endif
 
-/// Creates the global input instance. Returns zero if successful or non-zero on error
+/// Creates the global input instance. Returns zero if successful or non-zero on error.
+/// Windows: pass the HWND window handle
+/// Linux: pass the X Window handle
+/// Mac OSX: pass the Cocoa window id
 int SNIIS_Initialize( void* pInitArgs);
 /// Shuts down the global input instance
 void SNIIS_Shutdown();
-/// Per-frame update cycle: starts the input processing
-void SNIIS_StartUpdate();
-/// Per-frame update cycle: ends the input processing
-void SNIIS_EndUpdate();
 
-/// System-specific handling of data gathered outside of SNIIS. Call StartUpdate() first, then call this when handling
-/// system messages, then finally call EndUpdate();
-#if SNIIS_SYSTEM_WINDOWS
-  void SNIIS_HandleWinMessage( uint32_t message, size_t lParam, size_t wParam);
-#elif SNIIS_SYSTEM_LINUX
-#endif
-
+/// Per-frame update cycle: does the input processing. To be called before the message loop
+void SNIIS_InputSystem_Update();
 /// Notifies SNIIS about focus loss/gain. Non-Zero for focus gain, zero for focus loss
-void SNIIS_SetFocus( int pFocus);
+void SNIIS_InputSystem_SetFocus( int pFocus);
 
 #ifdef __cplusplus
 }

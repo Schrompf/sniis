@@ -38,8 +38,8 @@ InputSystem::~InputSystem()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Starts the update, to be called before handling system messages
-void InputSystem::StartUpdate()
+// Updates the input system, to be called before handling system messages
+void InputSystem::Update()
 {
   // do the key repeat. yeah.
   auto& krs = gInstance->mKeyRepeatState;
@@ -63,12 +63,6 @@ void InputSystem::StartUpdate()
     dch.second.Update();
   for( auto& ach : mAnalogChannels )
     ach.second.Update();
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Ends the update, to be called after handling system messages
-void InputSystem::EndUpdate()
-{
 }
 
 // --------------------------------------------------------------------------------------------------------------------

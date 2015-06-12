@@ -177,8 +177,8 @@ LinuxInput::~LinuxInput()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Starts the update, to be called before handling system messages
-void LinuxInput::StartUpdate()
+// Updates the inputs, to be called before handling system messages
+void LinuxInput::Update()
 {
   // Basis work
   InputSystem::StartUpdate();
@@ -235,14 +235,6 @@ void LinuxInput::StartUpdate()
 
     XFreeEventData( mDisplay, &event.xcookie);
   }
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Ends the update, to be called after handling system messages
-void LinuxInput::EndUpdate()
-{
-  // base work
-  InputSystem::EndUpdate();
 
   // update postprocessing
   for( auto d : mDevices )

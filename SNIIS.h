@@ -371,10 +371,8 @@ public:
   /// Destroys the input system. After returning gInstance is Null again
   static void Shutdown();
 
-  /// Starts the update, to be called before handling system messages
-  virtual void StartUpdate();
-  /// Ends the update, to be called after handling system messages
-  virtual void EndUpdate();
+  /// Updates the inputs, to be called before handling system messages
+  virtual void Update();
 
   /// Notifies the input system that the application has lost/gained focus. This avoids sticky keys where the PRESS msg
   /// was received but the RELEASE msg was not. Plus some OSes just keep sending input events regardless of focus; we
@@ -401,11 +399,6 @@ public:
   bool IsMouseGrabEnabled() const { return mIsMouseGrabEnabled; }
   /// Returns if the mouse is currently grabbed.
   bool IsMouseGrabbed() const { return mIsMouseGrabbed; }
-
-#if SNIIS_SYSTEM_WINDOWS
-  /// on Windows, hand WM_INPUT messages to it from your message queue
-  virtual void HandleWinMessage(uint32_t message, size_t lParam, size_t wParam) = 0;
-#endif
 
   /// Event handler to be called on input events.
   InputHandler* GetHandler() const { return mHandler; }
@@ -449,11 +442,15 @@ public:
   const KeyRepeatCfg& GetKeyRepeatCfg() const { return mKeyRepeatCfg; }
   bool IsInKeyRepeat() const { return mKeyRepeatState.mTimeTillRepeat > 0.0f; }
 
-  /// Event channels
+  /// Returns the digital channel associated with the given number, or creates it if it doesn't exist, yet
   DigitalChannel& GetDigital( size_t id);
+  /// Returns the analog channel associated with the given number, or creates it if it doesn't exist, yet
   AnalogChannel& GetAnalog( size_t id);
+  /// Returns the ids of all digital channels
   std::vector<size_t> GetDigitalIds() const;
+  /// Returns the ids of all analog channels
   std::vector<size_t> GetAnalogIds() const;
+  /// Clears all channel assignments, both digital and analog
   void ClearChannelAssignments();
 
 protected:

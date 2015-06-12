@@ -7,6 +7,8 @@
 #if SNIIS_SYSTEM_WINDOWS
 using namespace SNIIS;
 
+#include "../Traumklassen/TraumBasis.h"
+
 // --------------------------------------------------------------------------------------------------------------------
 WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle) 
   : Mouse( pId), mSystem( pSystem), mHandle( pHandle)
@@ -25,17 +27,23 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::StartUpdate()
 {
-  mState.relX = mState.relY = 0;
-  mState.prevButtons = mState.buttons;
-  mState.prevWheel = mState.wheel; mState.wheel = 0;
+  // we're not going to reset the relative state here. It turns out we sometimes miss RawInput messages because they
+  // occur in the small gap between our GetRawInputBuffer() and the end of the game's message loop. So we hooked into
+  // the wndproc to get those messages, too, but those will now call our ParseMessage() *after* our EndUpdate() is done.
+  // So in order to collect and broadcast those messages, too, we reset the state in EndUpdate() and thus carry any
+  // lost RawInput messages over to the Update() of next frame.
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void WinMouse::ParseMessage( const RAWINPUT& e)
+void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 {
   // not a mouse or not our mouse - just a safety, such a message shouldn't even reach us
   assert( e.header.dwType == RIM_TYPEMOUSE && e.header.hDevice == mHandle );
-  const RAWMOUSE& mouse = e.data.mouse;
+  // work around for GetRawInputBuffer() bug on WoW64
+  auto ptr = reinterpret_cast<const uint8_t*> (&e.data.mouse);
+  if( useWorkaround )
+    ptr += 8;
+  const RAWMOUSE& mouse = *(reinterpret_cast<const RAWMOUSE*> (ptr));
 
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
   InputSystemHelper::MakeThisMouseFirst( this);
@@ -85,10 +93,9 @@ void WinMouse::ParseMessage( const RAWINPUT& e)
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::EndUpdate()
 {
-
   // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
-  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() )
+  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() && mCount == 0 )
   {
     POINT currMousePos;
     GetCursorPos( &currMousePos);
@@ -124,6 +131,10 @@ void WinMouse::EndUpdate()
   // send the mouse wheel
   if( mState.wheel != mState.prevWheel )
     InputSystemHelper::DoMouseWheel( this, float( mState.wheel));
+
+  mState.relX = mState.relY = 0;
+  mState.prevButtons = mState.buttons;
+  mState.prevWheel = mState.wheel; mState.wheel = 0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

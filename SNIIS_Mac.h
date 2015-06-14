@@ -10,6 +10,8 @@
 #include <IOKit/hid/IOHIDLib.h>
 #include <CoreGraphics/CoreGraphics.h>
 
+#include "SNIIS_Mac_Helper.h"
+
 class MacDevice;
 class MacMouse;
 class MacKeyboard;
@@ -19,15 +21,18 @@ class MacJoystick;
 /// Mac OSX Input System
 class MacInput : public SNIIS::InputSystem
 {
+  id mWindow;
   IOHIDManagerRef mHidManager;
   std::vector<MacDevice*> mMacDevices;
 
 public:
-  MacInput();
+  MacInput( id pWindowId);
   ~MacInput();
 
   void Update() override;
-  void SetFocus(bool pHasFocus) override;
+  void InternSetFocus(bool pHasFocus) override;
+  void InternSetMouseGrab( bool enabled) override;
+  id GetWindowId() const { return mWindow; }
 protected:
   static void HandleNewDeviceCallback( void* context, IOReturn result, void* sender, IOHIDDeviceRef device);
   void HandleNewDevice( IOHIDDeviceRef device);
@@ -38,6 +43,7 @@ protected:
 struct MacControl
 {
   enum Type { Type_Axis, Type_Hat, Type_Hat_Second, Type_Button };
+  IOHIDDeviceRef mDevice;
   Type mType;
   std::string mName;
   IOHIDElementCookie mCookie;
@@ -59,7 +65,7 @@ public:
   /// Starts the update
   virtual void StartUpdate() = 0;
   /// Handles an input event coming from the USB HID callback
-  virtual void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) = 0;
+  virtual void HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) = 0;
   /// Notifies the input device that the application has lost/gained focus.
   virtual void SetFocus( bool pHasFocus) = 0;
 protected:
@@ -71,22 +77,26 @@ protected:
 /// Mac mouse, fed by USB HID events
 class MacMouse : public SNIIS::Mouse, public MacDevice
 {
+  bool mIsTrackpad;
   struct State
   {
     float axes[16], prevAxes[16];
     uint32_t buttons, prevButtons;
   } mState;
 
-  std::vector<MacControl> mButtons, mAxes;
+  std::vector<MacControl> mButtons, mAxes, mSecondaryButtons, mSecondaryAxes;
 
 public:
-  MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
+  MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef, bool isTrackpad);
+  /// The MacBook shows up as two separate mice, where one does the movement and the other does clicks and wheel... unite those
+  void AddDevice( IOHIDDeviceRef pRef);
   ~MacMouse();
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
+  void HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void EndUpdate();
   void SetFocus( bool pHasFocus) override;
+  bool IsTrackpad() const { return mIsTrackpad; }
 
   size_t GetNumButtons() const override;
   std::string GetButtonText( size_t idx) const override;
@@ -117,7 +127,7 @@ public:
   MacKeyboard( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
+  void HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;
@@ -146,7 +156,7 @@ public:
   MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef);
 
   void StartUpdate() override;
-  void HandleEvent( IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
+  void HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value) override;
   void SetFocus( bool pHasFocus) override;
 
   size_t GetNumButtons() const override;

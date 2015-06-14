@@ -7,10 +7,14 @@
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
 
+#include "../Traumklassen/TraumBasis.h"
+
 // --------------------------------------------------------------------------------------------------------------------
 // Constructor
-MacInput::MacInput()
+MacInput::MacInput(id pWindowId)
 {
+  mWindow = pWindowId;
+
   // create the manager
   mHidManager = IOHIDManagerCreate( kCFAllocatorDefault, 0);
   if( !mHidManager )
@@ -54,7 +58,7 @@ MacInput::~MacInput()
 void MacInput::Update()
 {
   // Basis work
-  InputSystem::StartUpdate();
+  InputSystem::Update();
 
   // device work
   for( size_t a = 0; a < mMacDevices.size(); ++a )
@@ -75,12 +79,29 @@ void MacInput::Update()
 
 // --------------------------------------------------------------------------------------------------------------------
 // Notifies the input system that the application has lost/gained focus.
-void MacInput::SetFocus( bool pHasFocus)
+void MacInput::InternSetFocus( bool pHasFocus)
 {
-  if( pHasFocus == mHasFocus )
-    return;
+  for( auto d : mMacDevices )
+    d->SetFocus( pHasFocus);
+}
 
-  mHasFocus = pHasFocus;
+// --------------------------------------------------------------------------------------------------------------------
+void MacInput::InternSetMouseGrab( bool enabled)
+{
+  auto wr = MacHelper_GetWindowRect( mWindow);
+  Pos p;
+  if( enabled )
+  {
+    // if enabled, move system mouse to window center and start taking offsets from there
+    p.x = wr.w / 2; p.y = wr.h / 2;
+  } else
+  {
+    // if disabled, move mouse to last reported mouse position to achieve a smooth non-jumpy transition between the modes
+    p.x = std::max( 0.0f, std::min( wr.w, float( GetMouseX())));
+    p.y = std::max( 0.0f, std::min( wr.h, float( GetMouseY())));
+  }
+  Pos gp = MacHelper_WinToDisplay( mWindow, p);
+  MacHelper_SetMousePos( gp);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -121,20 +142,34 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
   tmp[l++] = '|';
   CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
 
-//  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
+  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
 
+  // extra ugly: store last mouse because we might have to add the second trackpad to it
+  static MacMouse* lastMouse = nullptr;
   switch( usage )
   {
     case kHIDUsage_GD_Mouse:
     case kHIDUsage_GD_Pointer:
     {
       try {
-        auto m = new MacMouse( this, mDevices.size(), device);
-        InputSystemHelper::AddDevice( m);
-        mMacDevices.push_back( m);
-      } catch( std::exception& )
+        bool isTrackpad = strncmp( tmp.data(), "Apple Internal Keyboard / Trackpad", 34) == 0;
+        if( isTrackpad && lastMouse && lastMouse->IsTrackpad() )
+        {
+          lastMouse->AddDevice( device);
+        }
+        else
+        {
+          Traum::Konsole.Log( "Mouse %d (id %d)", mDevices.size(), mNumMice);
+          auto m = new MacMouse( this, mDevices.size(), device, isTrackpad);
+          InputSystemHelper::AddDevice( m);
+          mMacDevices.push_back( m);
+          if( isTrackpad )
+            lastMouse = m;
+        }
+      } catch( std::exception& e)
       {
         // TODO: invent logging
+        Traum::Konsole.Log( "Exception: %s", e.what());
       }
       break;
     }
@@ -146,9 +181,10 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         auto k = new MacKeyboard( this, mDevices.size(), device);
         InputSystemHelper::AddDevice( k);
         mMacDevices.push_back( k);
-      } catch( std::exception& )
+      } catch( std::exception& e)
       {
         // TODO: invent logging
+        Traum::Konsole.Log( "Exception: %s", e.what());
       }
       break;
     }
@@ -161,9 +197,10 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         auto j = new MacJoystick( this, mDevices.size(), device);
         InputSystemHelper::AddDevice( j);
         mMacDevices.push_back( j);
-      } catch( std::exception& )
+      } catch( std::exception& e)
       {
         // TODO: invent logging
+        Traum::Konsole.Log( "Exception: %s", e.what());
       }
       break;
     }
@@ -189,17 +226,17 @@ std::vector<MacControl> EnumerateDeviceControls( IOHIDDeviceRef devref)
       auto min = IOHIDElementGetLogicalMin( elmref), max = IOHIDElementGetLogicalMax( elmref);
       if( usage == kHIDUsage_GD_Hatswitch )
       {
-        controls.push_back( MacControl{ MacControl::Type_Hat, "", 0, usepage, usage, min, max });
-        controls.push_back( MacControl{ MacControl::Type_Hat_Second, "", 0, usepage, usage, min, max });
+        controls.push_back( MacControl{ devref, MacControl::Type_Hat, "", 0, usepage, usage, min, max });
+        controls.push_back( MacControl{ devref, MacControl::Type_Hat_Second, "", 0, usepage, usage, min, max });
       }
       else
       {
-        controls.push_back( MacControl{ MacControl::Type_Axis, "", 0, usepage, usage, min, max });
+        controls.push_back( MacControl{ devref, MacControl::Type_Axis, "", 0, usepage, usage, min, max });
       }
     }
     else if( type == kIOHIDElementTypeInput_Button )
     {
-      controls.push_back( MacControl{ MacControl::Type_Button, "", 0, usepage, usage, 0, 1 });
+      controls.push_back( MacControl{ devref, MacControl::Type_Button, "", 0, usepage, usage, 0, 1 });
     }
 
     // add a few things afterwards if we got new controls
@@ -233,7 +270,8 @@ void InputElementValueChangeCallback( void* ctx, IOReturn res, void* sender, IOH
   auto keksie = IOHIDElementGetCookie( elm);
   auto value = IOHIDValueGetIntegerValue( val);
   auto usepage = IOHIDElementGetUsagePage( elm), usage = IOHIDElementGetUsage( elm);
-  dev->HandleEvent( keksie, usepage, usage, value);
+  auto hiddev = IOHIDElementGetDevice( elm);
+  dev->HandleEvent( hiddev, keksie, usepage, usage, value);
 }
 
 std::pair<float, float> ConvertHatToAxes( long min, long max, long value)
@@ -269,7 +307,7 @@ bool InputSystem::Initialize(void* pInitArg)
 
   try
   {
-    gInstance = new MacInput;
+    gInstance = new MacInput( pInitArg);
   } catch( std::exception& )
   {
     // nope

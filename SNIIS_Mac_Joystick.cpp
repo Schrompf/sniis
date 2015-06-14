@@ -48,8 +48,9 @@ void MacJoystick::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacJoystick::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
+void MacJoystick::HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
 {
+  SNIIS_UNUSED( dev);
   SNIIS_UNUSED( usepage);
   SNIIS_UNUSED( usage);
 

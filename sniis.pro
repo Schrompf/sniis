@@ -25,6 +25,10 @@ HEADERS += \
     SNIIS_Intern.h \
     SNIIS_Linux.h \
     SNIIS_Win.h \
-    SNIIS_Mac.h
+    SNIIS_Mac.h \
+    SNIIS_Mac_Helper.h
 
-DISTFILES +=
+macx {
+  OBJECTIVE_SOURCES += \
+    SNIIS_Mac_Helper.m
+}

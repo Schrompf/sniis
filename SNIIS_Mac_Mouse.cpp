@@ -6,30 +6,43 @@
 
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
+#include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
-MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
+MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef, bool isTrackpad)
   : Mouse( pId), MacDevice( pSystem, pDeviceRef)
 {
+  mIsTrackpad = isTrackpad;
   memset( &mState, 0, sizeof( mState));
+  mAxes.resize( 3, MacControl{ nullptr, MacControl::Type_Axis, "", 0, 0, 0, -1, 1 });
+  mSecondaryAxes.resize( 3, MacControl{ nullptr, MacControl::Type_Axis, "", 0, 0, 0, -1, 1 });
 
-  if( IOHIDDeviceOpen( mDevice, kIOHIDOptionsTypeNone) != kIOReturnSuccess )
+  AddDevice( pDeviceRef);
+}
+
+// The MacBook shows up as two separate mice, where one does the movement and the other does clicks and wheel... unite those
+void MacMouse::AddDevice( IOHIDDeviceRef pRef)
+{
+  if( IOHIDDeviceOpen( pRef, kIOHIDOptionsTypeNone) != kIOReturnSuccess )
     throw std::runtime_error( "Failed to open HID device");
 
+  auto& btns = pRef == mDevice ? mButtons : mSecondaryButtons;
+  auto& axes = pRef == mDevice ? mAxes : mSecondaryAxes;
+
   // get all controls, sort axes to fit 0:X, 1:Y, 2:MouseWheel, sort buttons to fit 0:Left, 1:Right, 2:Middle
-  auto ctrls = EnumerateDeviceControls( mDevice);
-  mAxes.resize( 3, MacControl{ MacControl::Type_Axis, "", 0, 0, 0, -1, 1 });
+  auto ctrls = EnumerateDeviceControls( pRef);
   for( const auto& c : ctrls )
   {
 //    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType == MacControl::Type_Axis )
     {
+      // add every axis only once, because both trackpads supply the same basic controls
       switch( c.mUsage )
       {
-        case kHIDUsage_GD_X: mAxes[0] = c; break;
-        case kHIDUsage_GD_Y: mAxes[1] = c; break;
-        case kHIDUsage_GD_Wheel: mAxes[2] = c; break;
-        default: mAxes.push_back( c); break;
+        case kHIDUsage_GD_X: axes[0] = c; break;
+        case kHIDUsage_GD_Y: axes[1] = c; break;
+        case kHIDUsage_GD_Wheel: axes[2] = c; break;
+        default: axes.push_back( c); break;
       }
     }
     else if( c.mType == MacControl::Type_Button )
@@ -38,16 +51,16 @@ MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef)
       if( c.mUsePage == kHIDPage_Button )
       {
         size_t idx = size_t( c.mUsage) - 1;
-        if( mButtons.size() <= idx )
-          mButtons.resize( idx+1);
-        mButtons[idx] = c;
+        if( btns.size() <= idx )
+          btns.resize( idx+1);
+        btns[idx] = c;
       }
     }
   }
 
   // call us if something moves
-  IOHIDDeviceRegisterInputValueCallback( mDevice, &InputElementValueChangeCallback, static_cast<MacDevice*> (this));
-  IOHIDDeviceScheduleWithRunLoop( mDevice, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+  IOHIDDeviceRegisterInputValueCallback( pRef, &InputElementValueChangeCallback, static_cast<MacDevice*> (this));
+  IOHIDDeviceScheduleWithRunLoop( pRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 }
 
 MacMouse::~MacMouse()
@@ -71,7 +84,7 @@ void MacMouse::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacMouse::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
+void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
 {
   SNIIS_UNUSED( usepage);
   SNIIS_UNUSED( usage);
@@ -79,36 +92,41 @@ void MacMouse::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t
   if( value != 0 )
     InputSystemHelper::MakeThisMouseFirst( this);
 
-  // I'm too easily amused
-  auto axit = std::find_if( mAxes.cbegin(), mAxes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
-  auto buttit = std::find_if( mButtons.cbegin(), mButtons.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
-
-  if( axit != mAxes.cend() )
+  if( mSystem->IsInMultiMouseMode() )
   {
-    size_t idx = std::distance( mAxes.cbegin(), axit);
-    if( axit->mType == MacControl::Type_Hat )
+    const auto& axes = dev == mDevice ? mAxes : mSecondaryAxes;
+    auto axit = std::find_if( axes.cbegin(), axes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
+    if( axit != axes.cend() )
     {
-      // a hat always generates two axes
-      assert( mAxes.size() > idx+2 );
-      std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
-    }
-    else
-    {
-      // first two axis are pixel-sized, third axis is mouse wheel and can't be normalized, too
-      if( idx < 3 )
-        mState.axes[idx] += float( value);
+      size_t idx = std::distance( axes.cbegin(), axit);
+      if( axit->mType == MacControl::Type_Hat )
+      {
+        // a hat always generates two axes
+        assert( axes.size() > idx+2 );
+        std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
+      }
       else
-        mState.axes[idx] += float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+      {
+        // first two axis are pixel-sized, third axis is mouse wheel and can't be normalized, too
+        if( idx < 3 )
+          mState.axes[idx] += float( value);
+        else
+          mState.axes[idx] += float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+      }
     }
   }
 
-  if( buttit != mButtons.cend() )
   {
-    size_t idx = std::distance( mButtons.cbegin(), buttit);
-    bool isDown = (value != 0);
-    mState.buttons = (mState.buttons & (UINT32_MAX ^ (1u << idx))) | ((isDown ? 1u : 0u) << idx);
-    // send buttons right away, maybe makes working under slow framerates more reliable
-    InputSystemHelper::DoMouseButton( this, idx, isDown);
+    auto& btns = dev == mDevice ? mButtons : mSecondaryButtons;
+    auto buttit = std::find_if( btns.cbegin(), btns.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
+    if( buttit != btns.cend() )
+    {
+      size_t idx = std::distance( btns.cbegin(), buttit);
+      bool isDown = (value != 0);
+      mState.buttons = (mState.buttons & (UINT32_MAX ^ (1u << idx))) | ((isDown ? 1u : 0u) << idx);
+      // send buttons right away, maybe makes working under slow framerates more reliable
+      InputSystemHelper::DoMouseButton( this, idx, isDown);
+    }
   }
 }
 
@@ -117,13 +135,27 @@ void MacMouse::EndUpdate()
 {
   // get global mouse position if single mouse mode, because the HID mouse movements lack acceleration and such
   // just like RawInput on Windows
-  if( !mSystem->IsInMultiMouseMode() )
+  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() && mCount == 0 )
   {
-    // fetch the mouse position - the internet tells me to do it like this
-    CGEventRef event = CGEventCreate(nil);
-    CGPoint loc = CGEventGetLocation(event);
-    CFRelease(event);
-    mState.axes[0] = loc.x; mState.axes[1] = loc.y;
+    // convert to local coordinates
+    Pos mp = MacHelper_GetMousePos();
+    Pos lp = MacHelper_DisplayToWin( mSystem->GetWindowId(), mp);
+    if( lp.x > -10000.0f && lp.y > -10000.0f )
+    {
+      if( mSystem->IsMouseGrabbed() )
+      {
+        WindowRect rect = MacHelper_GetWindowRect( mSystem->GetWindowId());
+        Pos wndCenterPos = { rect.w / 2, rect.h / 2 };
+        mState.axes[0] += lp.x - wndCenterPos.x; mState.axes[1] += lp.y - wndCenterPos.y;
+        Pos globalWndCenter = MacHelper_WinToDisplay( mSystem->GetWindowId(), wndCenterPos);
+        MacHelper_SetMousePos( globalWndCenter);
+      } else
+      {
+        // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the
+        // global mouse movement to get expected mouse acceleration and such at least.
+        mState.axes[0] = lp.x; mState.axes[1] = lp.y;
+      }
+    }
   }
 
   // send the mouse move
@@ -146,11 +178,9 @@ void MacMouse::SetFocus( bool pHasFocus)
     // get current mouse position when in SingleMouseMode
     if( !mSystem->IsInMultiMouseMode() )
     {
-      CGEventRef event = CGEventCreate(nil);
-      CGPoint loc = CGEventGetLocation(event);
-      CFRelease(event);
+      Pos mp = MacHelper_GetMousePos();
       float px = mState.axes[0], py = mState.axes[1];
-      mState.axes[0] = loc.x; mState.axes[1] = loc.y;
+      mState.axes[0] = mp.x; mState.axes[1] = mp.y;
       if( px != mState.axes[0] || py != mState.axes[1] )
         InputSystemHelper::DoMouseMove( this, mState.axes[0], mState.axes[1], mState.axes[0] - px, mState.axes[1] - py);
     }

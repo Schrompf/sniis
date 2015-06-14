@@ -355,9 +355,10 @@ void MacKeyboard::StartUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void MacKeyboard::HandleEvent(IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
+void MacKeyboard::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32_t usepage, uint32_t usage, CFIndex value)
 {
   SNIIS_UNUSED( cookie);
+  SNIIS_UNUSED( dev);
 
   if( usepage != kHIDPage_KeyboardOrKeypad )
     return;

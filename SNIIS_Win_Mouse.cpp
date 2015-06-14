@@ -10,7 +10,7 @@ using namespace SNIIS;
 #include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
-WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle) 
+WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   : Mouse( pId), mSystem( pSystem), mHandle( pHandle)
 {
   mState.absX = mState.absY = mState.wheel = 0;
@@ -115,7 +115,7 @@ void WinMouse::EndUpdate()
         SetCursorPos( wndCenterPos.x, wndCenterPos.y);
       } else
       {
-        // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the 
+        // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the
         // global mouse movement to get expected mouse acceleration and such at least.
         int prevAbsX = mState.absX, prevAbsY = mState.absY;
         mState.absX = currMousePos.x; mState.absY = currMousePos.y;
@@ -178,9 +178,9 @@ void WinMouse::DoMouseClick( int mouseButton, bool isDown )
     return static_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseClick( mouseButton, isDown);
 
   if( isDown )
-	  mState.buttons |= 1 << mouseButton; 
+    mState.buttons |= 1 << mouseButton;
   else
-	  mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
+    mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
 
   InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
 }

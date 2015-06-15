@@ -27,6 +27,7 @@ InputSystem::InputSystem()
   mHandler = nullptr;
   mHasFocus = true;
   mIsInMultiMouseMode = false;
+  mIsMouseGrabEnabled = mIsMouseGrabbed = false;
 
   mKeyRepeatState.lasttick = clock();
   mKeyRepeatState.mKeyCode = KC_UNASSIGNED; mKeyRepeatState.mUnicodeChar = 0;

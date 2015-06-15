@@ -146,9 +146,14 @@ void MacMouse::EndUpdate()
       {
         WindowRect rect = MacHelper_GetWindowRect( mSystem->GetWindowId());
         Pos wndCenterPos = { rect.w / 2, rect.h / 2 };
-        mState.axes[0] += lp.x - wndCenterPos.x; mState.axes[1] += lp.y - wndCenterPos.y;
-        Pos globalWndCenter = MacHelper_WinToDisplay( mSystem->GetWindowId(), wndCenterPos);
-        MacHelper_SetMousePos( globalWndCenter);
+        float dx = lp.x - wndCenterPos.x, dy = lp.y - wndCenterPos.y;
+        if( dx*dx + dy*dy > 0.7f )
+        {
+          mState.axes[0] += dx; mState.axes[1] += dy;
+          Pos globalWndCenter = MacHelper_WinToDisplay( mSystem->GetWindowId(), wndCenterPos);
+          MacHelper_SetMousePos( globalWndCenter);
+          Traum::Konsole.Log( "mp %.2f, %.2f - diff %.2f, %.2f - neu %.2f, %.2f", mp.x, mp.y, dx, dy, globalWndCenter.x, globalWndCenter.y);
+        }
       } else
       {
         // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the

@@ -24,6 +24,8 @@ struct Pos MacHelper_GetMousePos()
 void MacHelper_SetMousePos( struct Pos p)
 {
   CGWarpMouseCursorPosition( CGPointMake( p.x, p.y));
+  // http://stackoverflow.com/questions/8215413/why-is-cgwarpmousecursorposition-causing-a-delay-if-it-is-not-what-is
+  CGAssociateMouseAndMouseCursorPosition( true);
 }
 
 struct Pos MacHelper_WinToDisplay( id wid, struct Pos p)

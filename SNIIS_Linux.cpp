@@ -62,7 +62,6 @@ LinuxInput::LinuxInput( Window wnd)
     switch( devices[i].use )
     {
       case XISlavePointer:
-      case XIFloatingSlave:
       {
         Traum::Konsole.Log( "Mouse %d (id %d) - \"%s\"", mNumMice, mDevices.size(), devices[i].name);
 
@@ -101,8 +100,48 @@ LinuxInput::LinuxInput( Window wnd)
         break;
       }
 
+      case XIFloatingSlave:
+      {
+        // Look through the controls of this device - if we find two absolute axes at 0 and 1, it might be a mouse.
+        // Otherwise register it as a keyboard.
+        const auto& dev = devices[i];
+        bool isAxisPresent[2] = { false, false };
+        for( int a = 0; a < dev.num_classes; ++a )
+        {
+          auto cl = dev.classes[a];
+          if( cl->type != XIValuatorClass )
+            continue;
+
+          auto vcl = reinterpret_cast<const XIValuatorClassInfo*> (cl);
+          if( vcl->number < 2 && vcl->mode == XIModeAbsolute )
+            isAxisPresent[vcl->number] = true;
+        }
+
+        try {
+          if( isAxisPresent[0] && isAxisPresent[1] )
+          {
+            Traum::Konsole.Log( "Floating slave \"%s\", seems to be mouse %d (id %d)", devices[i].name, mNumMice, mDevices.size());
+            auto m = new LinuxMouse( this, mDevices.size(), dev);
+            InputSystemHelper::AddDevice( m);
+            mMiceById[dev.deviceid] = m;
+          } else
+          {
+            Traum::Konsole.Log( "Floating slave \"%s\", seems to be keyboard %d (id %d)", devices[i].name, mNumKeyboards, mDevices.size());
+            auto k = new LinuxKeyboard( this, mDevices.size(), dev);
+            InputSystemHelper::AddDevice( k);
+            mKeyboardsById[dev.deviceid] = k;
+          }
+        } catch( std::exception& e)
+        {
+          // TODO: invent logging
+          Traum::Konsole.Log( "Exception: %s", e.what());
+        }
+        break;
+      }
+
       default:
         // pffft.
+        Traum::Konsole.Log( "Unknown device classs %d, ignoring.", devices[i].use);
         break;
     }
   }

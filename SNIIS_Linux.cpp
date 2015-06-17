@@ -54,95 +54,90 @@ LinuxInput::LinuxInput( Window wnd)
   XIDeviceInfo* devices = XIQueryDevice( mDisplay, XIAllDevices, &deviceCount);
   for( int i = 0; i < deviceCount; i++ )
   {
+    const auto& dev = devices[i];
+    static const char* sTypeName[6] = {
+      "Invalid", "XIMasterPointer", "XIMasterKeyboard", "XISlavePointer", "XISlaveKeyboard", "XIFloatingSlave"
+    };
+    Traum::Konsole.Log( "Input device of type %d - \"%s\"", dev.use < 6 ? sTypeName[dev.use] : "Unknown", devices[i].name);
+
     /* We only look at "slave" devices. "Master" pointers are the logical
      * cursors, "slave" pointers are the hardware that back them.
      * "Floating slaves" are hardware that don't back a cursor.
      */
+    if( dev.use != XISlavePointer && dev.use != XISlaveKeyboard && dev.use != XIFloatingSlave )
+      continue;
+    // Ignore some common pffft cases
+    if( strstr(devices[i].name, "XTEST") != nullptr )
+      continue;
 
-    switch( devices[i].use )
+    // Turns out the use field is unreliable. I got reports from keyboards being reported as mice because a pointer.
+    // So I hereby declare the new method of distinguishing those by judging the axis/button ratio.
+    size_t numButtons = 0, numAxes = 0;
+    bool isAxisPresent[2] = { false, false };
+    for( int a = 0; a < dev.num_classes; ++a )
     {
-      case XISlavePointer:
+      auto cl = dev.classes[a];
+      switch( cl->type )
       {
-        Traum::Konsole.Log( "Mouse %d (id %d) - \"%s\"", mNumMice, mDevices.size(), devices[i].name);
-
-        // a mouse. probably. Ignore some common pffft cases
-        if( strstr(devices[i].name, "XTEST") != nullptr )
+        case XIButtonClass:
+        {
+          auto bcl = reinterpret_cast<const XIButtonClassInfo*> (cl);
+          numButtons += bcl->num_buttons;
           break;
-
-        try {
-          auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
-          InputSystemHelper::AddDevice( m);
-          mMiceById[devices[i].deviceid] = m;
-        } catch( std::exception& e)
-        {
-          // TODO: invent logging
-          Traum::Konsole.Log( "Exception: %s", e.what());
         }
-        break;
-      }
-
-      case XISlaveKeyboard:
-      {
-        Traum::Konsole.Log( "Keyboard %d (id %d) - \"%s\"", mNumKeyboards, mDevices.size(), devices[i].name);
-        // a keyboard
-        if( strstr(devices[i].name, "XTEST") != nullptr )
+        case XIKeyClass:
+        {
+          // keys are most probably on a keyboard. I've never seen less than 248 num_keycodes, so this dominates the count
+          auto kcl = reinterpret_cast<const XIKeyClassInfo*> (cl);
+          numButtons += kcl->num_keycodes;
           break;
-
-        try {
-          auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
-          InputSystemHelper::AddDevice( k);
-          mKeyboardsById[devices[i].deviceid] = k;
-        } catch( std::exception& e)
-        {
-          // TODO: invent logging
-          Traum::Konsole.Log( "Exception: %s", e.what());
         }
-        break;
-      }
-
-      case XIFloatingSlave:
-      {
-        // Look through the controls of this device - if we find two absolute axes at 0 and 1, it might be a mouse.
-        // Otherwise register it as a keyboard.
-        const auto& dev = devices[i];
-        bool isAxisPresent[2] = { false, false };
-        for( int a = 0; a < dev.num_classes; ++a )
+        case XIValuatorClass:
         {
-          auto cl = dev.classes[a];
-          if( cl->type != XIValuatorClass )
-            continue;
-
+          // an axis
           auto vcl = reinterpret_cast<const XIValuatorClassInfo*> (cl);
-          if( vcl->number < 2 && vcl->mode == XIModeAbsolute )
+          if( vcl->number < 2 )
             isAxisPresent[vcl->number] = true;
+          numAxes++;
+          break;
         }
-
-        try {
-          if( isAxisPresent[0] && isAxisPresent[1] )
-          {
-            Traum::Konsole.Log( "Floating slave \"%s\", seems to be mouse %d (id %d)", devices[i].name, mNumMice, mDevices.size());
-            auto m = new LinuxMouse( this, mDevices.size(), dev);
-            InputSystemHelper::AddDevice( m);
-            mMiceById[dev.deviceid] = m;
-          } else
-          {
-            Traum::Konsole.Log( "Floating slave \"%s\", seems to be keyboard %d (id %d)", devices[i].name, mNumKeyboards, mDevices.size());
-            auto k = new LinuxKeyboard( this, mDevices.size(), dev);
-            InputSystemHelper::AddDevice( k);
-            mKeyboardsById[dev.deviceid] = k;
-          }
-        } catch( std::exception& e)
+        case XIScrollClass:
         {
-          // TODO: invent logging
-          Traum::Konsole.Log( "Exception: %s", e.what());
+          // probably a scroll wheel - might be on a mouse or a keyboard
+          numAxes++;
+          break;
         }
-        break;
       }
+    }
 
-      default:
-        // pffft.
-        Traum::Konsole.Log( "Unknown device classs %d, ignoring.", devices[i].use);
-        break;
+    // A mouse has at least two absolute axes, unfortunately we have no means to know if those are X and Y axes.
+    // A mouse also has a few buttons, maybe a dozen at max. A keyboard, on the other hand, has at least several dozens
+    // of buttons, but might also feature a few axes.
+    if( isAxisPresent[0] && isAxisPresent[1] && numButtons < numAxes * 10 )
+    {
+      Traum::Konsole.Log( "%d axes, %d buttons - register this as mouse %d (id %d)", numAxes, numButtons, mNumMice, mDevices.size());
+      try {
+        auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
+        InputSystemHelper::AddDevice( m);
+        mMiceById[devices[i].deviceid] = m;
+      } catch( std::exception& e)
+      {
+        // TODO: invent logging
+        Traum::Konsole.Log( "Exception: %s", e.what());
+      }
+    }
+    else
+    {
+      Traum::Konsole.Log( "%d axes, %d buttons - register this as keyboard %d (id %d)", numAxes, numButtons, mNumKeyboards, mDevices.size());
+      try {
+        auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
+        InputSystemHelper::AddDevice( k);
+        mKeyboardsById[devices[i].deviceid] = k;
+      } catch( std::exception& e)
+      {
+        // TODO: invent logging
+        Traum::Konsole.Log( "Exception: %s", e.what());
+      }
     }
   }
 

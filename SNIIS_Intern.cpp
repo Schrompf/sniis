@@ -361,20 +361,20 @@ void InputSystemHelper::AddDevice( Device* dev)
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
+      return;
+
   DoDigitalEvent( sender, btnIndex, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx, int rely)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnMouseMoved( sender, absx, absy) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnMouseMoved( sender, absx, absy) )
+      return;
+
   if( relx != 0 )
     DoAnalogEvent( sender, 0, float( absx));
   if( rely != 0 )
@@ -384,10 +384,9 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnMouseWheel( sender, diff) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnMouseWheel( sender, diff) )
+      return;
   DoAnalogEvent( sender, 2, diff);
 }
 
@@ -417,32 +416,34 @@ void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t u
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnKey( sender, kc, isPressed) )
-    return;
-  if( isPressed && unicode && gInstance->mHandler->OnUnicode( sender, unicode) )
-    return;
+  if( gInstance->mHandler )
+  {
+    if( gInstance->mHandler->OnKey( sender, kc, isPressed) )
+      return;
+    if( isPressed && unicode && gInstance->mHandler->OnUnicode( sender, unicode) )
+      return;
+  }
+
   DoDigitalEvent( sender, (size_t) kc, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoJoystickAxis( Joystick* sender, size_t axisIndex, float value)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnJoystickAxis( sender, axisIndex, value) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnJoystickAxis( sender, axisIndex, value) )
+      return;
+
   DoAnalogEvent( sender, axisIndex, value);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoJoystickButton( Joystick* sender, size_t btnIndex, bool isPressed)
 {
-  if( !gInstance->mHandler )
-    return;
-  if( gInstance->mHandler->OnJoystickButton( sender, btnIndex, isPressed) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnJoystickButton( sender, btnIndex, isPressed) )
+      return;
+
   DoDigitalEvent( sender, btnIndex, isPressed);
 }
 
@@ -477,7 +478,7 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
       }
 
       dch.mIsModified = (dch.mIsPressed != wasPressed);
-      if( dch.mIsModified )
+      if( gInstance->mHandler && dch.mIsModified )
         gInstance->mHandler->OnDigitalChannel( dch);
     }
   }
@@ -521,7 +522,7 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
         }
       }
       ach.mDiff += ach.mValue - prevValue;
-      if( ach.mValue != prevValue )
+      if( gInstance->mHandler && ach.mValue != prevValue )
         gInstance->mHandler->OnAnalogChannel( ach);
     }
   }
@@ -530,8 +531,9 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed)
 {
-  if( gInstance->mHandler->OnDigitalEvent( sender, btnIndex, isPressed) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnDigitalEvent( sender, btnIndex, isPressed) )
+      return;
 
   UpdateChannels( sender, btnIndex, false);
 }
@@ -539,8 +541,9 @@ void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool is
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float value)
 {
-  if( gInstance->mHandler->OnAnalogEvent( sender, axisIndex, value) )
-    return;
+  if( gInstance->mHandler )
+    if( gInstance->mHandler->OnAnalogEvent( sender, axisIndex, value) )
+      return;
 
   UpdateChannels( sender, axisIndex, true);
 }

@@ -73,6 +73,8 @@ WinInput::~WinInput()
     mKeyboard->Release();
 	if( mDirectInput )
 		mDirectInput->Release();
+
+  SetWindowLongPtrW( hWnd, GWL_WNDPROC, (LONG) mPreviousWndProc);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

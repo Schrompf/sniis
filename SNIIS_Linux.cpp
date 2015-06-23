@@ -55,24 +55,18 @@ LinuxInput::LinuxInput( Window wnd)
   for( int i = 0; i < deviceCount; i++ )
   {
     const auto& dev = devices[i];
-    static const char* sTypeName[6] = {
-      "Invalid", "XIMasterPointer", "XIMasterKeyboard", "XISlavePointer", "XISlaveKeyboard", "XIFloatingSlave"
-    };
-    Traum::Konsole.Log( "Input device of type %d - \"%s\"", dev.use < 6 ? sTypeName[dev.use] : "Unknown", devices[i].name);
-
-    /* We only look at "slave" devices. "Master" pointers are the logical
-     * cursors, "slave" pointers are the hardware that back them.
-     * "Floating slaves" are hardware that don't back a cursor.
-     */
+    /// We only look at "slave" devices. "Master" pointers are the logical cursors, "slave" pointers are the hardware
+    /// that back them. "Floating slaves" are hardware that don't back a cursor.
     if( dev.use != XISlavePointer && dev.use != XISlaveKeyboard && dev.use != XIFloatingSlave )
       continue;
     // Ignore some common pffft cases
     if( strstr(devices[i].name, "XTEST") != nullptr )
       continue;
 
-    // Turns out the use field is unreliable. I got reports from keyboards being reported as mice because a pointer.
-    // So I hereby declare the new method of distinguishing those by judging the axis/button ratio.
-    size_t numButtons = 0, numAxes = 0;
+    // Turns out the use field is unreliable. I got reports from keyboards being reported as mice because they back
+    // a pointer. I also got reports from mice exposing "keys", and XInput always reports >248 keys if at least one key
+    // is present. So I see no other options but to register some devices as a mouse AND a keyboard.
+    size_t numButtons = 0, numAxes = 0, numKeys = 0;
     bool isAxisPresent[2] = { false, false };
     for( int a = 0; a < dev.num_classes; ++a )
     {
@@ -87,9 +81,9 @@ LinuxInput::LinuxInput( Window wnd)
         }
         case XIKeyClass:
         {
-          // keys are most probably on a keyboard. I've never seen less than 248 num_keycodes, so this dominates the count
+          // keys are most probably on a keyboard. I've never seen less than 248 num_keycodes; I wonder what made them do this.
           auto kcl = reinterpret_cast<const XIKeyClassInfo*> (cl);
-          numButtons += kcl->num_keycodes;
+          numKeys += kcl->num_keycodes;
           break;
         }
         case XIValuatorClass:
@@ -110,12 +104,17 @@ LinuxInput::LinuxInput( Window wnd)
       }
     }
 
+    static const char* sTypeName[6] = {
+      "Invalid", "XIMasterPointer", "XIMasterKeyboard", "XISlavePointer", "XISlaveKeyboard", "XIFloatingSlave"
+    };
+    Traum::Konsole.Log( "Input device of type %d - \"%s\" - %d axes, %d buttons, %d keys",
+      dev.use < 6 ? sTypeName[dev.use] : "Unknown", devices[i].name, numAxes, numButtons, numKeys);
+
     // A mouse has at least two absolute axes, unfortunately we have no means to know if those are X and Y axes.
-    // A mouse also has a few buttons, maybe a dozen at max. A keyboard, on the other hand, has at least several dozens
-    // of buttons, but might also feature a few axes.
-    if( isAxisPresent[0] && isAxisPresent[1] && numButtons < numAxes * 10 )
+    // A mouse also has a few buttons, maybe a dozen at max.
+    if( isAxisPresent[0] && isAxisPresent[1] )
     {
-      Traum::Konsole.Log( "%d axes, %d buttons - register this as mouse %d (id %d)", numAxes, numButtons, mNumMice, mDevices.size());
+      Traum::Konsole.Log( "-> register this as mouse %d (id %d)", mNumMice, mDevices.size());
       try {
         auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
         InputSystemHelper::AddDevice( m);
@@ -126,9 +125,11 @@ LinuxInput::LinuxInput( Window wnd)
         Traum::Konsole.Log( "Exception: %s", e.what());
       }
     }
-    else
+
+    // A keyboard on the other hand has keys, but might also feature a few axes. So register a device as both if necessary.
+    if( numKeys > 0 )
     {
-      Traum::Konsole.Log( "%d axes, %d buttons - register this as keyboard %d (id %d)", numAxes, numButtons, mNumKeyboards, mDevices.size());
+      Traum::Konsole.Log( "-> register this as keyboard %d (id %d)", mNumKeyboards, mDevices.size());
       try {
         auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
         InputSystemHelper::AddDevice( k);

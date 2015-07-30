@@ -77,11 +77,11 @@ void WinJoystick::StartUpdate()
         memset(&inputState, 0, sizeof(inputState));
 
       //Sticks and triggers
-      mState.axes[0] = std::max( -1.0f, float( -inputState.Gamepad.sThumbLY) / 32767.0f);
-      mState.axes[1] = std::max( -1.0f, float( inputState.Gamepad.sThumbLX) / 32767.0f);
+      mState.axes[0] = std::max( -1.0f, float( inputState.Gamepad.sThumbLX) / 32767.0f);
+      mState.axes[1] = std::max( -1.0f, float( -inputState.Gamepad.sThumbLY) / 32767.0f);
       mState.axes[2] = std::max( -1.0f, float( inputState.Gamepad.bLeftTrigger) / 127.0f);
-      mState.axes[3] = std::max( -1.0f, float( -inputState.Gamepad.sThumbRY) / 32767.0f);
-      mState.axes[4] = std::max( -1.0f, float( inputState.Gamepad.sThumbRX) / 32767.0f);
+      mState.axes[3] = std::max( -1.0f, float( inputState.Gamepad.sThumbRX) / 32767.0f);
+      mState.axes[4] = std::max( -1.0f, float( -inputState.Gamepad.sThumbRY) / 32767.0f);
       mState.axes[5] = std::max( -1.0f, float( inputState.Gamepad.bRightTrigger) / 127.0f);
       mState.axes[6] = ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) ? -1.0f : 0.0f)
           + ((inputState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) ? 1.0f : 0.0f);

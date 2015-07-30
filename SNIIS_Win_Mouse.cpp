@@ -236,7 +236,7 @@ float WinMouse::GetAxisAbsolute( size_t idx) const
   {
     case 0: return float( mState.absX);
     case 1: return float( mState.absY);
-    case 2: return float( mState.wheel);
+    case 2: return float( mState.prevWheel); // because of the zeroing in EndUpdate() prev contains the accumulated wheel of last frame
     default: return 0.0f;
   }
 }

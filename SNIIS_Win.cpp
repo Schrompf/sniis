@@ -312,7 +312,7 @@ void WinInput::Update()
   }
 
   // read raw input 
-  while( false )
+  while( true )
   {
     uint8_t buf[800];
     // align it to 16 bytes. Probably useless, the actual bug was in the RAWINPUT structure itsself

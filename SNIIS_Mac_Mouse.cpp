@@ -33,7 +33,7 @@ void MacMouse::AddDevice( IOHIDDeviceRef pRef)
   auto ctrls = EnumerateDeviceControls( pRef);
   for( const auto& c : ctrls )
   {
-//    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+//    Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType == MacControl::Type_Axis )
     {
       // add every axis only once, because both trackpads supply the same basic controls
@@ -89,7 +89,7 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
   SNIIS_UNUSED( usepage);
   SNIIS_UNUSED( usage);
 
-  if( value != 0 )
+  if( value != 0 && !mIsFirstUpdate )
     InputSystemHelper::MakeThisMouseFirst( this);
 
   if( mSystem->IsInMultiMouseMode() )
@@ -125,7 +125,8 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
       bool isDown = (value != 0);
       mState.buttons = (mState.buttons & (UINT32_MAX ^ (1u << idx))) | ((isDown ? 1u : 0u) << idx);
       // send buttons right away, maybe makes working under slow framerates more reliable
-      InputSystemHelper::DoMouseButton( this, idx, isDown);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::DoMouseButton( this, idx, isDown);
     }
   }
 }
@@ -152,7 +153,6 @@ void MacMouse::EndUpdate()
           mState.axes[0] += dx; mState.axes[1] += dy;
           Pos globalWndCenter = MacHelper_WinToDisplay( mSystem->GetWindowId(), wndCenterPos);
           MacHelper_SetMousePos( globalWndCenter);
-          Traum::Konsole.Log( "mp %.2f, %.2f - diff %.2f, %.2f - neu %.2f, %.2f", mp.x, mp.y, dx, dy, globalWndCenter.x, globalWndCenter.y);
         }
       } else
       {
@@ -163,16 +163,19 @@ void MacMouse::EndUpdate()
     }
   }
 
-  // send the mouse move
-  if( mState.prevAxes[0] != mState.axes[0] || mState.prevAxes[1] != mState.axes[1] )
-    InputSystemHelper::DoMouseMove( this, mState.axes[0], mState.axes[1], mState.axes[0] - mState.prevAxes[0], mState.axes[1] - mState.prevAxes[1]);
-  // send the mouse wheel.
-  if( mState.prevAxes[2] != mState.axes[2] )
-    InputSystemHelper::DoMouseWheel( this, mState.axes[2]);
-  // send the other axes, if there are any
-  for( size_t a = 3; a < mAxes.size(); ++a )
-    if( mState.axes[a] != mState.prevAxes[a] )
-      InputSystemHelper::DoAnalogEvent( this, a, mState.axes[a]);
+  if( !mIsFirstUpdate )
+  {
+    // send the mouse move
+    if( mState.prevAxes[0] != mState.axes[0] || mState.prevAxes[1] != mState.axes[1] )
+      InputSystemHelper::DoMouseMove( this, mState.axes[0], mState.axes[1], mState.axes[0] - mState.prevAxes[0], mState.axes[1] - mState.prevAxes[1]);
+    // send the mouse wheel.
+    if( mState.prevAxes[2] != mState.axes[2] )
+      InputSystemHelper::DoMouseWheel( this, mState.axes[2]);
+    // send the other axes, if there are any
+    for( size_t a = 3; a < mAxes.size(); ++a )
+      if( mState.axes[a] != mState.prevAxes[a] )
+        InputSystemHelper::DoAnalogEvent( this, a, mState.axes[a]);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

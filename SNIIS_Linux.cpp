@@ -107,37 +107,35 @@ LinuxInput::LinuxInput( Window wnd)
     static const char* sTypeName[6] = {
       "Invalid", "XIMasterPointer", "XIMasterKeyboard", "XISlavePointer", "XISlaveKeyboard", "XIFloatingSlave"
     };
-    Traum::Konsole.Log( "Input device of type %d - \"%s\" - %d axes, %d buttons, %d keys",
+    Log( "Input device of type %d - \"%s\" - %d axes, %d buttons, %d keys",
       dev.use < 6 ? sTypeName[dev.use] : "Unknown", devices[i].name, numAxes, numButtons, numKeys);
 
     // A mouse has at least two absolute axes, unfortunately we have no means to know if those are X and Y axes.
     // A mouse also has a few buttons, maybe a dozen at max.
     if( isAxisPresent[0] && isAxisPresent[1] )
     {
-      Traum::Konsole.Log( "-> register this as mouse %d (id %d)", mNumMice, mDevices.size());
+      Log( "-> register this as mouse %d (id %d)", mNumMice, mDevices.size());
       try {
         auto m = new LinuxMouse( this, mDevices.size(), devices[i]);
         InputSystemHelper::AddDevice( m);
         mMiceById[devices[i].deviceid] = m;
       } catch( std::exception& e)
       {
-        // TODO: invent logging
-        Traum::Konsole.Log( "Exception: %s", e.what());
+        Log( "Exception: %s", e.what());
       }
     }
 
     // A keyboard on the other hand has keys, but might also feature a few axes. So register a device as both if necessary.
     if( numKeys > 0 )
     {
-      Traum::Konsole.Log( "-> register this as keyboard %d (id %d)", mNumKeyboards, mDevices.size());
+      Log( "-> register this as keyboard %d (id %d)", mNumKeyboards, mDevices.size());
       try {
         auto k = new LinuxKeyboard( this, mDevices.size(), devices[i]);
         InputSystemHelper::AddDevice( k);
         mKeyboardsById[devices[i].deviceid] = k;
       } catch( std::exception& e)
       {
-        // TODO: invent logging
-        Traum::Konsole.Log( "Exception: %s", e.what());
+        Log( "Exception: %s", e.what());
       }
     }
   }
@@ -160,7 +158,7 @@ LinuxInput::LinuxInput( Window wnd)
     if( ioctl( fd, EVIOCGNAME( sizeof( tmp)), tmp) < 0)
       throw std::runtime_error( "Could not read device name");
 
-    Traum::Konsole.Log( "Controller %d (id %d) - \"%s\"", mNumJoysticks, mDevices.size(), &tmp[0]);
+    Log( "Controller %d (id %d) - \"%s\"", mNumJoysticks, mDevices.size(), &tmp[0]);
 
     // check if it's a controller. If we're started with root privileges, we'd get mice and keyboards here, too,
     // but we can't rely on it, so we sort those out and only use it for controllers.
@@ -202,8 +200,7 @@ LinuxInput::LinuxInput( Window wnd)
           InputSystemHelper::AddDevice( j);
         } catch( std::exception& e)
         {
-          // TODO: invent logging
-          Traum::Konsole.Log( "Exception: %s", e.what());
+          Log( "Exception: %s", e.what());
         }
       } else
       {
@@ -289,6 +286,9 @@ void LinuxInput::Update()
   {
     if( auto mouse = dynamic_cast<LinuxMouse*> (d) )
       mouse->EndUpdate();
+
+    // from now on everything generates signals
+    d->ResetFirstUpdateFlag();
   }
 }
 

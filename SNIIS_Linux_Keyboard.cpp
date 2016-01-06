@@ -1036,14 +1036,16 @@ void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
 
       if( kc != KC_UNASSIGNED && isPressed != IsSet( kc) )
       {
-        InputSystemHelper::MakeThisKeyboardFirst( this);
+        if( !mIsFirstUpdate )
+          InputSystemHelper::MakeThisKeyboardFirst( this);
 
         int shiftlevel = (IsSet( KC_LSHIFT) || IsSet( KC_RSHIFT)) ? 1 : 0;
         uint32_t sks = XKeycodeToKeysym( mSystem->GetDisplay(), key, shiftlevel);
         uint32_t unicode = ConvertKeysymToUnicode( sks);
 
         Set( kc, isPressed);
-        InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
+        if( !mIsFirstUpdate )
+          InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
       }
       break;
     }

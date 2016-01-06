@@ -345,6 +345,9 @@ void WinInput::Update()
   {
     if( auto mouse = dynamic_cast<WinMouse*> (d) )
       mouse->EndUpdate();
+
+    // from now on everything generates signals
+    d->ResetFirstUpdateFlag();
   }
 }
 

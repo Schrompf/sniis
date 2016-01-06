@@ -5,6 +5,12 @@
 #include "SNIIS.h"
 #include "SNIIS_C.h"
 
+// Assigns the log callback to receive occasional log messages. 
+extern "C" void SNIIS_SetLogCallback(LogCallback callback)
+{
+  SNIIS::gLogCallback = callback;
+}
+
 // Creates the global input instance. Returns zero if successful or non-zero on error
 extern "C" int SNIIS_Initialize( void* pInitArgs)
 {

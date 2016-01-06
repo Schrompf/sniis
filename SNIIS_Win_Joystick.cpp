@@ -168,7 +168,8 @@ void WinJoystick::StartUpdate()
     if( mState.axes[i] != prevAxes[i] )
     {
       mState.diffs[i] = mState.axes[i] - prevAxes[i];
-      InputSystemHelper::DoJoystickAxis( this, i, mState.axes[i]);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::DoJoystickAxis( this, i, mState.axes[i]);
     }
   }
 
@@ -176,7 +177,8 @@ void WinJoystick::StartUpdate()
   for( size_t i = 0; i < mNumButtons; i++ )
   {
     if( (mState.buttons ^ mState.prevButtons) & (1ull << i) )
-      InputSystemHelper::DoJoystickButton( this, i, (mState.buttons & (1ull << i)) != 0);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::DoJoystickButton( this, i, (mState.buttons & (1ull << i)) != 0);
   }
 }
 
@@ -231,7 +233,7 @@ int CALLBACK WinJoystick::DIEnumDeviceObjectsCallback(LPCDIDEVICEOBJECTINSTANCE 
   diptr.diph.dwHeaderSize = sizeof(DIPROPHEADER);
   diptr.diph.dwHow        = DIPH_BYID;
   diptr.diph.dwObj        = lpddoi->dwType;
-  //Add a magic number to recognise we set seomthing
+  // Add a magic number to recognize we set something
   diptr.uData             = 0x13130000 | _this->mEnumAxis;
 
   if( FAILED( _this->mJoystick->SetProperty( DIPROP_APPDATA, &diptr.diph)) )

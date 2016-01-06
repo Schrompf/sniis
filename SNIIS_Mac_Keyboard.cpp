@@ -328,7 +328,7 @@ MacKeyboard::MacKeyboard( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceR
   auto ctrls = EnumerateDeviceControls( mDevice);
   for( const auto& c : ctrls )
   {
-//    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+//    Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType == MacControl::Type_Button )
     {
       if( c.mUsage > sKeyTableSize || sKeyTable[c.mUsage] == SNIIS::KC_UNASSIGNED )
@@ -378,7 +378,8 @@ void MacKeyboard::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uin
   }
 
   // we're still there - it's an actual key stroke
-  InputSystemHelper::MakeThisKeyboardFirst( this);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::MakeThisKeyboardFirst( this);
 
   bool isDown = (value != 0);
   Set( kc, isDown);
@@ -415,7 +416,8 @@ void MacKeyboard::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uin
     }
   }
 
-  InputSystemHelper::DoKeyboardButton( this, kc, uc, isDown);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::DoKeyboardButton( this, kc, uc, isDown);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ MacJoystick::MacJoystick( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceR
   auto ctrls = EnumerateDeviceControls( mDevice);
   for( const auto& c : ctrls )
   {
-//    Traum::Konsole.Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
+//    Log( "Control: \"%s\" Typ %d, keks %d, usage %d/%d, bereich %d..%d", c.mName.c_str(), c.mType, c.mCookie, c.mUsePage, c.mUsage, c.mMin, c.mMax);
     if( c.mType != MacControl::Type_Button )
       mAxes.push_back( c);
     else
@@ -65,8 +65,11 @@ void MacJoystick::HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, ui
       // a hat always generates two axes
       assert( mAxes.size() > idx+2 );
       std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
-      InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
-      InputSystemHelper::DoJoystickAxis( this, idx+1, mState.axes[idx+1]);
+      if( !mIsFirstUpdate )
+      {
+        InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
+        InputSystemHelper::DoJoystickAxis( this, idx+1, mState.axes[idx+1]);
+      }
     }
     else
     {
@@ -75,7 +78,8 @@ void MacJoystick::HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, ui
         mState.axes[idx] = float( value - axit->mMin) / float( axit->mMax - axit->mMin);
       else
         mState.axes[idx] = (float( value - axit->mMin) / float( axit->mMax - axit->mMin)) * 2.0f - 1.0f;
-      InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::DoJoystickAxis( this, idx, mState.axes[idx]);
     }
   }
 
@@ -84,7 +88,8 @@ void MacJoystick::HandleEvent( IOHIDDeviceRef dev, IOHIDElementCookie cookie, ui
     size_t idx = std::distance( mButtons.cbegin(), buttit);
     bool isDown = (value != 0);
     mState.buttons = (mState.buttons & (UINT64_MAX ^ (1ull << idx))) | ((isDown ? 1ull : 0u) << idx);
-    InputSystemHelper::DoJoystickButton( this, idx, isDown);
+    if( !mIsFirstUpdate )
+      InputSystemHelper::DoJoystickButton( this, idx, isDown);
   }
 }
 

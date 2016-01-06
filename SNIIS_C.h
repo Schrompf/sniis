@@ -21,6 +21,12 @@
 extern "C" {
 #endif
 
+typedef void (*LogCallback)(const char* msg);
+
+/// Assigns the log callback to receive occasional log messages. Can be done at any time, recommended to assign
+/// even before initializing. Assign nullptr to disable logging.
+void SNIIS_SetLogCallback( LogCallback callback);
+
 /// Creates the global input instance. Returns zero if successful or non-zero on error.
 /// Windows: pass the HWND window handle
 /// Linux: pass the X Window handle

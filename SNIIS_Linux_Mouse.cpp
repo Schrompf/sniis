@@ -69,7 +69,8 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
       {
         if( XIMaskIsSet( ev.valuators.mask, a) )
         {
-          InputSystemHelper::MakeThisMouseFirst( this);
+          if( !mIsFirstUpdate )
+            InputSystemHelper::MakeThisMouseFirst( this);
           double v = *values++;
           if( mAxes[a].isAbsolute )
             mAxes[a].value = v;
@@ -83,7 +84,8 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
     case XI_RawButtonPress:
     case XI_RawButtonRelease:
     {
-      InputSystemHelper::MakeThisMouseFirst( this);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::MakeThisMouseFirst( this);
 
       size_t button = size_t( ev.detail);
       bool isPressed = (ev.evtype == XI_RawButtonPress);
@@ -109,12 +111,15 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
 // --------------------------------------------------------------------------------------------------------------------
 void LinuxMouse::EndUpdate()
 {
-  // send the mouse move
-  if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
-    InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
-  // send the mouse wheel axis
-  if( mAxes[2].prevValue != mAxes[2].value )
-    InputSystemHelper::DoMouseWheel( this, mAxes[2].value);
+  if( !mIsFirstUpdate )
+  {
+    // send the mouse move
+    if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
+      InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
+    // send the mouse wheel axis
+    if( mAxes[2].prevValue != mAxes[2].value )
+      InputSystemHelper::DoMouseWheel( this, mAxes[2].value);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -159,7 +164,8 @@ void LinuxMouse::DoMouseClick( int mouseButton, bool isDown )
   else
 	  mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
 
-  InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

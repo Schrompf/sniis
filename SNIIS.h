@@ -214,9 +214,10 @@ class Device
 protected:
   size_t mId;   ///< Device ID
   size_t mCount; ///< we're the n-th device of our specific kind
+  bool mIsFirstUpdate; ///< true if the device is queried for the first time. First state does not trigger updates to evade devices with perm_on controls
 
 public:
-  Device(size_t pId) : mId(pId) { }
+  Device(size_t pId) : mId(pId), mCount( 0), mIsFirstUpdate( true) { }
   virtual ~Device() { }
 
   /// ID
@@ -236,6 +237,9 @@ public:
   virtual bool WasButtonReleased(size_t idx) const { SNIIS_UNUSED( idx); return false; }
   virtual float GetAxisAbsolute(size_t idx) const { SNIIS_UNUSED( idx); return 0.0f; }
   virtual float GetAxisDifference(size_t idx) const { SNIIS_UNUSED( idx); return 0.0f; }
+
+  /// Bookkeeping. Sorry for the public
+  void ResetFirstUpdateFlag() { mIsFirstUpdate = false; }
 };
 
 /// a mouse is an abstract input device
@@ -457,6 +461,7 @@ protected:
   virtual void InternSetFocus( bool pHasFocus) = 0;
   void InternGrabMouseIfNecessary();
   virtual void InternSetMouseGrab( bool enabled) = 0;
+  void Log(const char* msg, ...);
 
 protected:
   std::vector<Device*> mDevices;
@@ -479,5 +484,9 @@ protected:
 
 /// global Instance of the Input System if initialized, or Null
 extern InputSystem* gInstance;
+
+/// Log callback to receive logging messages.
+typedef void (*LogCallback)( const char* message);
+extern LogCallback gLogCallback;
 
 } // namespace SNIIS

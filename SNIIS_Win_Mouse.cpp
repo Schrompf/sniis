@@ -46,7 +46,8 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
   const RAWMOUSE& mouse = *(reinterpret_cast<const RAWMOUSE*> (ptr));
 
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
-  InputSystemHelper::MakeThisMouseFirst( this);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::MakeThisMouseFirst( this);
 
   // Mouse buttons - Raw Input only supports five
   if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) DoMouseClick( MB_Left, true);
@@ -152,8 +153,9 @@ void WinMouse::SetFocus( bool pHasFocus)
       mState.absX = point.x; mState.absY = point.y;
       mState.relX = mState.absX - prevAbsX;
       mState.relY = mState.absY - prevAbsY;
-      if( mState.relX != 0 || mState.relY != 0 )
-        InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+      if( !mIsFirstUpdate )
+        if( mState.relX != 0 || mState.relY != 0 )
+          InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
     }
   }
   else
@@ -182,7 +184,8 @@ void WinMouse::DoMouseClick( int mouseButton, bool isDown )
   else
     mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
 
-  InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -172,15 +172,17 @@ void LinuxJoystick::StartUpdate()
     if( mState.axes[i] != prevAxes[i] )
     {
       mState.diffs[i] = mState.axes[i] - prevAxes[i];
-      InputSystemHelper::DoJoystickAxis( this, i, mState.axes[i]);
+      if( !mIsFirstUpdate )
+        InputSystemHelper::DoJoystickAxis( this, i, mState.axes[i]);
     }
   }
 
   // send events - buttons
   for( size_t i = 0; i < mButtons.size(); i++ )
   {
-    if( (mState.buttons ^ mState.prevButtons) & (1ull << i) )
-      InputSystemHelper::DoJoystickButton( this, i, (mState.buttons & (1ull << i)) != 0);
+    if( !mIsFirstUpdate )
+      if( (mState.buttons ^ mState.prevButtons) & (1ull << i) )
+        InputSystemHelper::DoJoystickButton( this, i, (mState.buttons & (1ull << i)) != 0);
   }
 }
 

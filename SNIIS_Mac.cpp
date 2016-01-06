@@ -73,8 +73,13 @@ void MacInput::Update()
 
   // Mice need postprocessing
   for( auto d : mMacDevices )
+  {
     if( auto m = dynamic_cast<MacMouse*> (d) )
       m->EndUpdate();
+
+    // from now on everything generates signals
+    d->ResetFirstUpdateFlag();
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -142,7 +147,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
   tmp[l++] = '|';
   CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
 
-  Traum::Konsole.Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
+  Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
 
   // extra ugly: store last mouse because we might have to add the second trackpad to it
   static MacMouse* lastMouse = nullptr;
@@ -159,7 +164,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         }
         else
         {
-          Traum::Konsole.Log( "Mouse %d (id %d)", mDevices.size(), mNumMice);
+          Log( "Mouse %d (id %d)", mDevices.size(), mNumMice);
           auto m = new MacMouse( this, mDevices.size(), device, isTrackpad);
           InputSystemHelper::AddDevice( m);
           mMacDevices.push_back( m);
@@ -168,8 +173,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         }
       } catch( std::exception& e)
       {
-        // TODO: invent logging
-        Traum::Konsole.Log( "Exception: %s", e.what());
+        Log( "Exception: %s", e.what());
       }
       break;
     }
@@ -183,8 +187,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         mMacDevices.push_back( k);
       } catch( std::exception& e)
       {
-        // TODO: invent logging
-        Traum::Konsole.Log( "Exception: %s", e.what());
+        Log( "Exception: %s", e.what());
       }
       break;
     }
@@ -199,8 +202,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         mMacDevices.push_back( j);
       } catch( std::exception& e)
       {
-        // TODO: invent logging
-        Traum::Konsole.Log( "Exception: %s", e.what());
+        Log( "Exception: %s", e.what());
       }
       break;
     }

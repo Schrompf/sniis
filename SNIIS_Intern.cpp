@@ -9,10 +9,13 @@
 
 using namespace SNIIS;
 
-/// global Instance of the Input System if initialized, or Null
 namespace SNIIS
 {
+  /// global Instance of the Input System if initialized, or Null
   InputSystem* gInstance = nullptr;
+
+  /// globol log collbock
+  LogCallback gLogCallback = nullptr;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -20,6 +23,7 @@ InputSystem::InputSystem()
 {
   // I don't want to hand around the instance pointer in InputSystemHelper so make it public quickly and retract later
   SNIIS::gInstance = this;
+  Log( "SNIIS instance created.");
 
   mFirstMouse = nullptr; mFirstKeyboard = nullptr; mFirstJoystick = nullptr;
   mNumMice = mNumKeyboards = mNumJoysticks = 0;
@@ -38,6 +42,7 @@ InputSystem::InputSystem()
 // --------------------------------------------------------------------------------------------------------------------
 InputSystem::~InputSystem()
 {
+  Log("SNIIS instance going down.");
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -74,6 +79,7 @@ void InputSystem::SetFocus( bool pHasFocus)
 {
   if( pHasFocus == mHasFocus )
     return;
+  Log( "SNIIS: %s focus", pHasFocus ? "got" : "lost");
   mHasFocus = pHasFocus;
   InternSetFocus( pHasFocus);
   InternGrabMouseIfNecessary();
@@ -85,6 +91,7 @@ void InputSystem::SetMultiMouseMode( bool enabled)
 {
   if( enabled == mIsInMultiMouseMode )
     return;
+  Log("SNIIS: %s multi mouse mode", enabled ? "enabled" : "disabled");
   mIsInMultiMouseMode = enabled;
   InternGrabMouseIfNecessary();
 }
@@ -95,6 +102,7 @@ void InputSystem::SetMouseGrab( bool enabled)
 {
   if( enabled == mIsMouseGrabEnabled )
     return;
+  Log("SNIIS: %s mouse grab", enabled ? "enabled" : "disabled");
   mIsMouseGrabEnabled = enabled;
   InternGrabMouseIfNecessary();
 }
@@ -105,6 +113,7 @@ void InputSystem::InternGrabMouseIfNecessary()
   bool necessary = mIsMouseGrabEnabled && mHasFocus && !mIsInMultiMouseMode;
   if( necessary == mIsMouseGrabbed )
     return;
+  Log("SNIIS: %s mouse", necessary ? "grabbing" : "releasing");
   mIsMouseGrabbed = necessary;
   InternSetMouseGrab( necessary);
 }
@@ -220,6 +229,32 @@ void InputSystem::ClearChannelAssignments()
     }
     p.second.mSources.clear();
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void InputSystem::Log(const char* msg, ...)
+{
+  if( !gLogCallback )
+    return;
+
+  static const size_t TEMPSIZE = 1024;
+  va_list args;
+
+  // extend to text
+  va_start(args, msg);
+  char temp[TEMPSIZE];
+  int z = vsnprintf( temp, TEMPSIZE - 1, msg, args);
+  va_end(args);
+
+  // terminate with zero if not done yet
+  if( z >= 0 )
+  {
+    z = std::min(z, int(TEMPSIZE - 1));
+    temp[z] = 0;
+  }
+
+  // send to callback
+  gLogCallback( temp);
 }
 
 // ********************************************************************************************************************
@@ -556,7 +591,7 @@ void InputSystemHelper::MakeThisMouseFirst( Mouse* mouse)
     gInstance->mReorderMiceOnActivity = false;
     if( mouse != gInstance->mFirstMouse )
     {
-      Traum::Konsole.Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, gInstance->mFirstMouse->mId, gInstance->mFirstMouse->mCount);
+      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, gInstance->mFirstMouse->mId, gInstance->mFirstMouse->mCount);
 
       std::swap( mouse->mId, gInstance->mFirstMouse->mId);
       std::swap( mouse->mCount, gInstance->mFirstMouse->mCount);
@@ -577,7 +612,7 @@ void InputSystemHelper::MakeThisKeyboardFirst( Keyboard* keyboard)
     gInstance->mReorderKeyboardsOnActivity = false;
     if( keyboard != gInstance->mFirstKeyboard )
     {
-      Traum::Konsole.Log( "Swap keyboards due to activity: %d,%d and %d,%d",
+      gInstance->Log( "Swap keyboards due to activity: %d,%d and %d,%d",
         keyboard->mId, keyboard->mCount, gInstance->mFirstKeyboard->mId, gInstance->mFirstKeyboard->mCount);
 
       std::swap( keyboard->mId, gInstance->mFirstKeyboard->mId);

@@ -97,12 +97,14 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
   }
 
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
-  InputSystemHelper::MakeThisKeyboardFirst( this);
+  if( !mIsFirstUpdate )
+    InputSystemHelper::MakeThisKeyboardFirst( this);
 
   if( IsSet( scanCode) != pressed )
   {
     Set( scanCode, pressed);
-    InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
+    if( !mIsFirstUpdate )
+      InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
   }
 }
 

@@ -31,7 +31,7 @@ class WinInput : public SNIIS::InputSystem
 	HWND hWnd;
 
   /// The old WndProc before we intercepted it
-  WNDPROC mPreviousWndProc;
+  LONG_PTR mPreviousWndProc;
 
   /// workaround for buggy RawInput implementation: true if our process runs translated via WoW64 (Windows on Windows)
   bool mIsWorkAroundEnabled;

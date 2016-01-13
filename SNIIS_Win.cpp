@@ -10,6 +10,10 @@ using namespace SNIIS;
 #ifndef SAFE_RELEASE
   #define SAFE_RELEASE(x) if(x != nullptr) { x->Release(); x = nullptr; }
 #endif
+// Ain't no sunshine when this' gone
+#if _WIN64
+typedef uint64_t QWORD;
+#endif
 
 #pragma comment(lib, "xinput.lib")
 
@@ -44,7 +48,7 @@ WinInput::WinInput( HWND wnd)
   // with the game's message loop
 
 	HINSTANCE hInst = GetModuleHandle(0);
-  mPreviousWndProc = (WNDPROC) SetWindowLongPtrW( hWnd, GWL_WNDPROC, (LONG) &WinInput::WndProcHook);
+  mPreviousWndProc = SetWindowLongPtrW( hWnd, GWLP_WNDPROC, (LONG_PTR) &WinInput::WndProcHook);
 
 	//Create the device
 	HRESULT hr = DirectInput8Create( hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (VOID**)&mDirectInput, nullptr );
@@ -74,7 +78,7 @@ WinInput::~WinInput()
 	if( mDirectInput )
 		mDirectInput->Release();
 
-  SetWindowLongPtrW( hWnd, GWL_WNDPROC, (LONG) mPreviousWndProc);
+  SetWindowLongPtrW( hWnd, GWLP_WNDPROC, mPreviousWndProc);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -413,7 +417,7 @@ LRESULT CALLBACK WinInput::WndProcHook( HWND hwnd, UINT msg, WPARAM wparam, LPAR
   }
   else
   {
-    return CallWindowProcW( that->mPreviousWndProc, hwnd, msg, wparam, lparam);
+    return CallWindowProcW( (WNDPROC) that->mPreviousWndProc, hwnd, msg, wparam, lparam);
   }
 }
 

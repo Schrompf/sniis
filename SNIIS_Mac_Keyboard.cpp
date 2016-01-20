@@ -464,7 +464,7 @@ size_t MacKeyboard::GetNumButtons() const
   return mNumKeys;
 }
 // --------------------------------------------------------------------------------------------------------------------
-std::string MacKeyboard::GetButtonText( size_t idx) const
+std::string MacKeyboard::GetButtonText( size_t /*idx*/) const
 {
 /*
   // search backwards to map our keycode to the Mac Keysym it originated from

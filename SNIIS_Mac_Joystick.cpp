@@ -132,7 +132,7 @@ size_t MacJoystick::GetNumButtons() const
   return mButtons.size();
 }
 // --------------------------------------------------------------------------------------------------------------------
-std::string MacJoystick::GetButtonText( size_t idx) const
+std::string MacJoystick::GetButtonText( size_t /*idx*/) const
 {
   return "";
 }
@@ -142,7 +142,7 @@ size_t MacJoystick::GetNumAxes() const
   return mAxes.size();
 }
 // --------------------------------------------------------------------------------------------------------------------
-std::string MacJoystick::GetAxisText( size_t idx) const
+std::string MacJoystick::GetAxisText( size_t /*idx*/) const
 {
   return "";
 }

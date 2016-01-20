@@ -92,26 +92,27 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
   if( value != 0 && !mIsFirstUpdate )
     InputSystemHelper::MakeThisMouseFirst( this);
 
-  if( mSystem->IsInMultiMouseMode() )
+  const auto& axes = dev == mDevice ? mAxes : mSecondaryAxes;
+  auto axit = std::find_if( axes.cbegin(), axes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
+  if( axit != axes.cend() )
   {
-    const auto& axes = dev == mDevice ? mAxes : mSecondaryAxes;
-    auto axit = std::find_if( axes.cbegin(), axes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
-    if( axit != axes.cend() )
+    size_t idx = std::distance( axes.cbegin(), axit);
+    if( axit->mType == MacControl::Type_Hat )
     {
-      size_t idx = std::distance( axes.cbegin(), axit);
-      if( axit->mType == MacControl::Type_Hat )
+      // a hat always generates two axes
+      assert( axes.size() > idx+2 );
+      std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
+    }
+    else
+    {
+      // first two axes are pixel-sized, third axis is mouse wheel, so all three can't be normalized
+      if( idx < 3 )
       {
-        // a hat always generates two axes
-        assert( axes.size() > idx+2 );
-        std::tie( mState.axes[idx], mState.axes[idx+1]) = ConvertHatToAxes( axit->mMin, axit->mMax, value );
-      }
-      else
-      {
-        // first two axis are pixel-sized, third axis is mouse wheel and can't be normalized, too
-        if( idx < 3 )
+        if( mSystem->IsInMultiMouseMode() || idx >= 2 )
           mState.axes[idx] += float( value);
-        else
-          mState.axes[idx] += float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+      } else
+      {
+        mState.axes[idx] += float( value - axit->mMin) / float( axit->mMax - axit->mMin);
       }
     }
   }

@@ -38,7 +38,9 @@ MacInput::MacInput(id pWindowId)
 
   // remove the manager from the callbacks and runloop
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, nullptr, nullptr);
-  IOHIDManagerUnscheduleFromRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+  // Since some OSX update the Unschedule() thingy also unschedules all devices, so we never get any event notifications
+  // simply leaving it be should be fine, as we unregistered the callback
+//  IOHIDManagerUnscheduleFromRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -72,7 +74,7 @@ void MacInput::Update()
     /**/;
 
   // Mice need postprocessing
-  for( auto d : mMacDevices )
+  for( auto d : mDevices )
   {
     if( auto m = dynamic_cast<MacMouse*> (d) )
       m->EndUpdate();

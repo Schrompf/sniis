@@ -100,12 +100,8 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
   if( !mIsFirstUpdate )
     InputSystemHelper::MakeThisKeyboardFirst( this);
 
-  if( IsSet( scanCode) != pressed )
-  {
-    Set( scanCode, pressed);
-    if( !mIsFirstUpdate )
-      InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
-  }
+  if( !mIsFirstUpdate )
+    InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed, mState, sizeof(mState) / sizeof( mState[0]));
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -122,9 +118,8 @@ void WinKeyboard::SetFocus( bool pHasFocus)
     {
       if( IsSet( a) )
       {
-        Set( a,  false);
         mPrevState[a/64] |= (1ull << (a&63));
-        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false);
+        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false, mState, sizeof(mState) / sizeof( mState[0]));
       }
     }
   }

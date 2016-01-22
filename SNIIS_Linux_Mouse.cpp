@@ -128,7 +128,7 @@ void LinuxMouse::SetFocus( bool pHasFocus)
   if( pHasFocus )
   {
     // get current mouse position when in SingleMouseMode
-    if( !mSystem->IsInMultiMouseMode() )
+    if( !mSystem->IsInMultiDeviceMode() )
     {
       Window wa, wb;
       int rootx, rooty, childx, childy;

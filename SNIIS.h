@@ -248,10 +248,10 @@ class Mouse : public Device
 public:
   Mouse(size_t pId) : Device(pId) { }
 
-  virtual int GetMouseX() const { return 0; }
-  virtual int GetMouseY() const { return 0; }
-  virtual int GetRelMouseX() const { return 0; }
-  virtual int GetRelMouseY() const { return 0; }
+  virtual float GetMouseX() const { return 0; }
+  virtual float GetMouseY() const { return 0; }
+  virtual float GetRelMouseX() const { return 0; }
+  virtual float GetRelMouseY() const { return 0; }
 };
 
 /// a keyboard is, too
@@ -343,7 +343,7 @@ public:
   virtual ~InputHandler() { }
 
   virtual bool OnKey( Keyboard*, KeyCode, bool) { return false; }
-  virtual bool OnMouseMoved( Mouse*, int, int) { return false; }
+  virtual bool OnMouseMoved( Mouse*, float, float) { return false; }
   virtual bool OnMouseButton( Mouse*, size_t, bool) { return false; }
   virtual bool OnMouseWheel( Mouse*, float) { return false; }
 
@@ -385,12 +385,16 @@ public:
   /// Returns if the input system is acting as if it's focused. Strange wording, I know, but it's set from the outside only.
   bool HasFocus() const { return mHasFocus; }
 
-  /// Enables or disables multi-mice mode. In Single mode all mice draw their state from the global OS state and thus
-  /// match the expected movement exactly. In Multi mode, some local API is used instead which lacks any Mouse speed and 
-  /// acceleration setting, therefore the mouse might move differently than what the user expects.
-  void SetMultiMouseMode( bool enabled);
+  /// Enables or disables multi-device mode. In Single mode all mice draw their state from the global OS state and thus
+  /// match the expected movement exactly. Also all keyboards and mice will reroute their events to the primary device
+  /// to match the user's expectation. In Multi Device Mode, some local API is used instead which usually lacks any Mouse 
+  /// speed and acceleration setting, therefore the mouse might move differently than what the user expects.
+  /// Also, there's usually a whole bunch of strange HIDs showing up in the enumeration and some of those behave weirdly,
+  /// so exactly determining which device is under the user's hand is difficult at times.
+  /// Default: disabled
+  void SetMultiDeviceMode( bool enabled);
   /// Returns whether MultiMouseMode is currently enabled.
-  bool IsInMultiMouseMode() const { return mIsInMultiMouseMode; }
+  bool IsInMultiDeviceMode() const { return mIsInMultiMouseMode; }
 
   /// Enables or disables Mouse Grabbing. If not grabbed, the mouse can leave the window or maybe activate things 
   /// in the background on Linux. This also activates the per-frame center code which keeps the mouse in the middle of
@@ -421,10 +425,10 @@ public:
 
   /// Comfort functions to query the current state of the input system and the changes since the last call to Update()
   /// All functions query the first device of its kind only.
-  int GetMouseX() const { return mFirstMouse ? mFirstMouse->GetMouseX() : 0; }
-  int GetMouseY() const { return mFirstMouse ? mFirstMouse->GetMouseY() : 0; }
-  int GetRelMouseX() const { return mFirstMouse ? mFirstMouse->GetRelMouseX() : 0; }
-  int GetRelMouseY() const { return mFirstMouse ? mFirstMouse->GetRelMouseY() : 0; }
+  float GetMouseX() const { return mFirstMouse ? mFirstMouse->GetMouseX() : 0; }
+  float GetMouseY() const { return mFirstMouse ? mFirstMouse->GetMouseY() : 0; }
+  float GetRelMouseX() const { return mFirstMouse ? mFirstMouse->GetRelMouseX() : 0; }
+  float GetRelMouseY() const { return mFirstMouse ? mFirstMouse->GetRelMouseY() : 0; }
 
   bool IsKeyDown( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->IsKeyDown( key) : false; }
   bool WasKeyReleased( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyPressed( key) : false; }

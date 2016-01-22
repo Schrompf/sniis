@@ -13,15 +13,16 @@ using namespace SNIIS;
 WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   : Mouse( pId), mSystem( pSystem), mHandle( pHandle)
 {
-  mState.absX = mState.absY = mState.wheel = 0;
-  mState.relX = mState.relY = mState.prevWheel = 0;
+  mState.absX = mState.absY = 0.0f;
+  mState.relX = mState.relY = 0.0f;
+  mState.wheel = mState.prevWheel = 0.0f;
   mState.buttons = mState.prevButtons = 0;
 
   // read initial position, assume single mouse mode
   POINT point;
   GetCursorPos(&point);
   ScreenToClient( mSystem->GetWindowHandle(), &point);
-  mState.absX = point.x; mState.absY = point.y;
+  mState.absX = float( point.x); mState.absY = float( point.y);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -50,40 +51,38 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
     InputSystemHelper::MakeThisMouseFirst( this);
 
   // Mouse buttons - Raw Input only supports five
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) DoMouseClick( MB_Left, true);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP) DoMouseClick( MB_Left, false);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN ) DoMouseClick( MB_Right, true);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_UP) DoMouseClick( MB_Right, false);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN ) DoMouseClick( MB_Middle, true);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_UP) DoMouseClick( MB_Middle, false);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN ) DoMouseClick( MB_Button3, true);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) DoMouseClick( MB_Button3, false);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN ) DoMouseClick( MB_Button4, true);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) DoMouseClick( MB_Button4, false);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Left, true, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP) InputSystemHelper::DoMouseButton( this, MB_Left, false, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Right, true, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_UP) InputSystemHelper::DoMouseButton( this, MB_Right, false, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Middle, true, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_UP) InputSystemHelper::DoMouseButton( this, MB_Middle, false, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Button3, true, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) InputSystemHelper::DoMouseButton( this, MB_Button3, false, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Button4, true, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) InputSystemHelper::DoMouseButton( this, MB_Button4, false, mState.buttons);
 
   // Mouse wheel
   if( mouse.usButtonFlags & RI_MOUSE_WHEEL )
-  {
-    mState.wheel += (short) mouse.usButtonData;
-  }
+    InputSystemHelper::DoMouseWheel( this, float( short( mouse.usButtonData)), mState.wheel);
 
   // Movement
-  if( mSystem->IsInMultiMouseMode() )
+  if( mSystem->IsInMultiDeviceMode() )
   {
     if( (mouse.usFlags & 1) == MOUSE_MOVE_RELATIVE )
     {
       if( mouse.lLastX != 0 || mouse.lLastY != 0 )
       {
-        mState.relX += mouse.lLastX; mState.absX += mouse.lLastX;
-        mState.relY += mouse.lLastY; mState.absY += mouse.lLastY;
+        mState.relX += float( mouse.lLastX); mState.absX += float( mouse.lLastX);
+        mState.relY += float( mouse.lLastY); mState.absY += float( mouse.lLastY);
       }
     }
     else
     {
-      int preX = mState.absX, preY = mState.absY;
-      if( mState.absX != mouse.lLastX || mState.absY != mouse.lLastY )
+      float preX = mState.absX, preY = mState.absY;
+      if( mState.absX != float( mouse.lLastX) || mState.absY != float( mouse.lLastY) )
       {
-        mState.absX = mouse.lLastX; mState.absY = mouse.lLastY;
+        mState.absX = float( mouse.lLastX); mState.absY = float( mouse.lLastY);
         mState.relX += mState.absX - preX;
         mState.relY += mState.absY - preY;
       }
@@ -96,7 +95,7 @@ void WinMouse::EndUpdate()
 {
   // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
-  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() && mCount == 0 )
+  if( !mSystem->IsInMultiDeviceMode() && mSystem->HasFocus() && mCount == 0 )
   {
     POINT currMousePos;
     GetCursorPos( &currMousePos);
@@ -109,8 +108,8 @@ void WinMouse::EndUpdate()
         RECT rect;
         GetWindowRect( mSystem->GetWindowHandle(), &rect);
         POINT wndCenterPos = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
-        mState.relX = currMousePos.x - wndCenterPos.x;
-        mState.relY = currMousePos.y - wndCenterPos.y;
+        mState.relX = float( currMousePos.x - wndCenterPos.x);
+        mState.relY = float( currMousePos.y - wndCenterPos.y);
         mState.absX += mState.relX; mState.absY += mState.relY;
         ClientToScreen( mSystem->GetWindowHandle(), &wndCenterPos);
         SetCursorPos( wndCenterPos.x, wndCenterPos.y);
@@ -118,8 +117,8 @@ void WinMouse::EndUpdate()
       {
         // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the
         // global mouse movement to get expected mouse acceleration and such at least.
-        int prevAbsX = mState.absX, prevAbsY = mState.absY;
-        mState.absX = currMousePos.x; mState.absY = currMousePos.y;
+        float prevAbsX = mState.absX, prevAbsY = mState.absY;
+        mState.absX = float( currMousePos.x); mState.absY = float( currMousePos.y);
         mState.relX = mState.absX - prevAbsX;
         mState.relY = mState.absY - prevAbsY;
       }
@@ -129,9 +128,6 @@ void WinMouse::EndUpdate()
   // send the mouse move
   if( mState.relX != 0 || mState.relY != 0 )
     InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
-  // send the mouse wheel
-  if( mState.wheel != mState.prevWheel )
-    InputSystemHelper::DoMouseWheel( this, float( mState.wheel));
 
   mState.relX = mState.relY = 0;
   mState.prevButtons = mState.buttons;
@@ -144,13 +140,13 @@ void WinMouse::SetFocus( bool pHasFocus)
   if( pHasFocus )
   {
     // get current mouse position when in SingleMouseMode
-    if( !mSystem->IsInMultiMouseMode() )
+    if( !mSystem->IsInMultiDeviceMode() )
     {
       POINT point;
       GetCursorPos(&point);
       ScreenToClient( mSystem->GetWindowHandle(), &point);
-      int prevAbsX = mState.absX, prevAbsY = mState.absY;
-      mState.absX = point.x; mState.absY = point.y;
+      float prevAbsX = mState.absX, prevAbsY = mState.absY;
+      mState.absX = float( point.x); mState.absY = float( point.y);
       mState.relX = mState.absX - prevAbsX;
       mState.relY = mState.absY - prevAbsY;
       if( !mIsFirstUpdate )
@@ -165,27 +161,10 @@ void WinMouse::SetFocus( bool pHasFocus)
       if( mState.buttons & (1 << a) )
       {
         mState.prevButtons |= (1 << a);
-        mState.buttons &= std::numeric_limits<decltype( mState.buttons)>::max() ^ (1 << a);
-        InputSystemHelper::DoMouseButton( this, a, false);
+        InputSystemHelper::DoMouseButton( this, a, false, mState.buttons);
       }
     }
   }
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-void WinMouse::DoMouseClick( int mouseButton, bool isDown )
-{
-  // in single mouse mode, redirect click to main mouse
-  if( !mSystem->IsInMultiMouseMode() && mCount != 0 )
-    return static_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseClick( mouseButton, isDown);
-
-  if( isDown )
-    mState.buttons |= 1 << mouseButton;
-  else
-    mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
-
-  if( !mIsFirstUpdate )
-    InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -255,12 +234,12 @@ float WinMouse::GetAxisDifference( size_t idx) const
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
-int WinMouse::GetMouseX() const { return mState.absX; }
+float WinMouse::GetMouseX() const { return mState.absX; }
 // --------------------------------------------------------------------------------------------------------------------
-int WinMouse::GetMouseY() const { return mState.absY; }
+float WinMouse::GetMouseY() const { return mState.absY; }
 // --------------------------------------------------------------------------------------------------------------------
-int WinMouse::GetRelMouseX() const { return mState.relX; }
+float WinMouse::GetRelMouseX() const { return mState.relX; }
 // --------------------------------------------------------------------------------------------------------------------
-int WinMouse::GetRelMouseY() const { return mState.relY; }
+float WinMouse::GetRelMouseY() const { return mState.relY; }
 
 #endif // SNIIS_SYSTEM_WINDOWS

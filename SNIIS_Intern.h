@@ -15,10 +15,13 @@ namespace SNIIS
   struct InputSystemHelper
   {
     static void AddDevice( Device* dev);
-    static void DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed);
-    static void DoMouseMove( Mouse* sender, int absx, int absy, int relx, int rely);
-    static void DoMouseWheel( Mouse* sender, float diff);
-    static void DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed);
+    /// Handles a mouse button change, also maintains the state and reroutes input in case of SingleDeviceMode
+    static void DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed, uint32_t& inoutButtonState);
+    static void DoMouseMove( Mouse* sender, float absx, float absy, float relx, float rely);
+    /// Handles mouse wheel activity, also maintains the state and reroutes input in case of SingleDeviceMode
+    static void DoMouseWheel( Mouse* sender, float diff, float& inoutWheelState);
+    /// Handles keyboard typing, also maintains the state of all keys and reroutes input in case of SingleDeviceMode  
+    static void DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed, uint64_t* inoutState, size_t stateSize);
     static void DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed);
     static void DoJoystickAxis( Joystick* sender, size_t axisIndex, float value);
     static void DoJoystickButton( Joystick* sender, size_t btnIndex, bool isPressed);

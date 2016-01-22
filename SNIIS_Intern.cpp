@@ -87,7 +87,7 @@ void InputSystem::SetFocus( bool pHasFocus)
 
 // --------------------------------------------------------------------------------------------------------------------
 // Enables or disables multi-mice mode.
-void InputSystem::SetMultiMouseMode( bool enabled)
+void InputSystem::SetMultiDeviceMode( bool enabled)
 {
   if( enabled == mIsInMultiMouseMode )
     return;
@@ -394,8 +394,18 @@ void InputSystemHelper::AddDevice( Device* dev)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed)
+void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed, uint32_t& inoutButtonState)
 {
+  // reroute to primary mouse in SingleDeviceMode
+  if( !gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0 )
+    return DoMouseButton( gInstance->GetMouseByCount( 0), btnIndex, isPressed, inoutButtonState);
+
+  // track state in the given bitset
+  if( isPressed )
+    inoutButtonState |= 1 << btnIndex;
+  else
+    inoutButtonState &= ~(1 << btnIndex);
+
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
       return;
@@ -404,7 +414,7 @@ void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPr
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx, int rely)
+void InputSystemHelper::DoMouseMove( Mouse* sender, float absx, float absy, float relx, float rely)
 {
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseMoved( sender, absx, absy) )
@@ -417,8 +427,15 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, int absx, int absy, int relx
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
+void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff, float& inoutWheelState)
 {
+  // reroute to primary mouse in SingleDeviceMode
+  if (!gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0)
+    return DoMouseWheel(gInstance->GetMouseByCount(0), diff, inoutWheelState);
+
+  // track state
+  inoutWheelState += diff;
+
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseWheel( sender, diff) )
       return;
@@ -426,8 +443,29 @@ void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
+void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed, uint64_t* inoutState, size_t stateSize)
 {
+  // reroute to primary mouse in SingleDeviceMode
+  if (!gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0)
+    return DoKeyboardButton( gInstance->GetKeyboardByCount( 0), kc, unicode, isPressed, inoutState, stateSize);
+
+  // shouldn't happen... kill it?
+  assert( size_t( kc) < 64 * stateSize );
+  if( size_t( kc) >= 64 * stateSize )
+    return;
+
+  // don't do anything if the state of the key doesn't actually change
+  uint64_t arrmask = 1ull << (kc & 63);
+  size_t arridx = kc / 64;
+  if( !!(inoutState[arridx] & arrmask) == isPressed )
+    return;
+
+  // store state of that specific key
+  if (isPressed)
+    inoutState[arridx] |= arrmask;
+  else
+    inoutState[arridx] &= UINT64_MAX ^ arrmask;
+
   // store for key repetition
   if( isPressed && gInstance->mKeyRepeatCfg.enable )
   {

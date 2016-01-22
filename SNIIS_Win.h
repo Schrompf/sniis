@@ -74,7 +74,8 @@ class WinMouse : public SNIIS::Mouse
   HANDLE mHandle;
   struct State 
   {
-    int absX, absY, relX, relY, wheel, prevWheel;
+    float absX, absY, relX, relY;
+    float wheel, prevWheel;
     uint32_t buttons, prevButtons;
   } mState;
 
@@ -95,12 +96,10 @@ public:
   bool WasButtonReleased( size_t idx) const override;
   float GetAxisAbsolute( size_t idx) const override;
   float GetAxisDifference( size_t idx) const override;
-  int GetMouseX() const override;
-  int GetMouseY() const override;
-  int GetRelMouseX() const override;
-  int GetRelMouseY() const override;
-protected:
-  void DoMouseClick( int mouseButton, bool isDown );
+  float GetMouseX() const override;
+  float GetMouseY() const override;
+  float GetRelMouseX() const override;
+  float GetRelMouseY() const override;
 };
 
 /// -------------------------------------------------------------------------------------------------------------------

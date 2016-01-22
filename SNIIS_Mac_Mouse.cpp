@@ -108,7 +108,7 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
       // first two axes are pixel-sized, third axis is mouse wheel, so all three can't be normalized
       if( idx < 3 )
       {
-        if( mSystem->IsInMultiMouseMode() || idx >= 2 )
+        if( mSystem->IsInMultiDeviceMode() || idx >= 2 )
           mState.axes[idx] += float( value);
       } else
       {
@@ -137,7 +137,7 @@ void MacMouse::EndUpdate()
 {
   // get global mouse position if single mouse mode, because the HID mouse movements lack acceleration and such
   // just like RawInput on Windows
-  if( !mSystem->IsInMultiMouseMode() && mSystem->HasFocus() && mCount == 0 )
+  if( !mSystem->IsInMultiDeviceMode() && mSystem->HasFocus() && mCount == 0 )
   {
     // convert to local coordinates
     Pos mp = MacHelper_GetMousePos();
@@ -185,7 +185,7 @@ void MacMouse::SetFocus( bool pHasFocus)
   if( pHasFocus )
   {
     // get current mouse position when in SingleMouseMode
-    if( !mSystem->IsInMultiMouseMode() )
+    if( !mSystem->IsInMultiDeviceMode() )
     {
       Pos mp = MacHelper_GetMousePos();
       float px = mState.axes[0], py = mState.axes[1];

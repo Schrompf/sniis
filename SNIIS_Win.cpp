@@ -383,7 +383,7 @@ void WinInput::InternSetMouseGrab( bool enabled)
   } else
   {
     // if disabled, move mouse to last reported mouse position to achieve a smooth non-jumpy transition between the modes
-    pt = POINT{ std::max( 0, std::min( int( rect.right - rect.left), GetMouseX())), std::max( 0, std::min( int( rect.bottom - rect.top), GetMouseY())) };
+    pt = POINT{ std::max( 0, std::min( int( rect.right - rect.left), int( GetMouseX()))), std::max( 0, std::min( int( rect.bottom - rect.top), int( GetMouseY()))) };
   }
   ClientToScreen( hWnd, &pt);
   SetCursorPos( pt.x, pt.y);

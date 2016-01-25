@@ -48,23 +48,23 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
   if( !mIsFirstUpdate )
-    InputSystemHelper::MakeThisMouseFirst( this);
+    InputSystemHelper::SortThisMouseToFront( this);
 
   // Mouse buttons - Raw Input only supports five
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Left, true, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP) InputSystemHelper::DoMouseButton( this, MB_Left, false, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Right, true, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_UP) InputSystemHelper::DoMouseButton( this, MB_Right, false, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Middle, true, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_UP) InputSystemHelper::DoMouseButton( this, MB_Middle, false, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Button3, true, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) InputSystemHelper::DoMouseButton( this, MB_Button3, false, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN ) InputSystemHelper::DoMouseButton( this, MB_Button4, true, mState.buttons);
-  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) InputSystemHelper::DoMouseButton( this, MB_Button4, false, mState.buttons);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) DoMouseButton( MB_Left, true);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP) DoMouseButton( MB_Left, false);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN ) DoMouseButton( MB_Right, true);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_2_UP) DoMouseButton( MB_Right, false);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN ) DoMouseButton( MB_Middle, true);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_3_UP) DoMouseButton( MB_Middle, false);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN ) DoMouseButton( MB_Button3, true);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) DoMouseButton( MB_Button3, false);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN ) DoMouseButton( MB_Button4, true);
+  if( mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) DoMouseButton( MB_Button4, false);
 
   // Mouse wheel
   if( mouse.usButtonFlags & RI_MOUSE_WHEEL )
-    InputSystemHelper::DoMouseWheel( this, float( short( mouse.usButtonData)), mState.wheel);
+    DoMouseWheel( float( short( mouse.usButtonData)));
 
   // Movement
   if( mSystem->IsInMultiDeviceMode() )
@@ -135,6 +135,38 @@ void WinMouse::EndUpdate()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+void WinMouse::DoMouseWheel( float wheel)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<WinMouse*> (mSystem->GetMouseByCount(0))->DoMouseWheel( wheel);
+
+  // store change
+  mState.wheel += wheel;
+
+  InputSystemHelper::DoMouseWheel( this, wheel);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinMouse::DoMouseButton(size_t btnIndex, bool isPressed)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseButton( btnIndex, isPressed);
+
+  // don't signal if it isn't an actual state change
+  if (!!(mState.buttons & (1u << btnIndex)) == isPressed)
+    return;
+
+  // store state change
+  uint32_t bitmask = (1 << btnIndex);
+  mState.buttons = (mState.buttons & ~bitmask) | (isPressed ? bitmask : 0);
+
+  // and notify everyone interested
+  InputSystemHelper::DoMouseButton(this, btnIndex, isPressed);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 void WinMouse::SetFocus( bool pHasFocus)
 {
   if( pHasFocus )
@@ -160,8 +192,8 @@ void WinMouse::SetFocus( bool pHasFocus)
     {
       if( mState.buttons & (1 << a) )
       {
+        DoMouseButton( a, false);
         mState.prevButtons |= (1 << a);
-        InputSystemHelper::DoMouseButton( this, a, false, mState.buttons);
       }
     }
   }

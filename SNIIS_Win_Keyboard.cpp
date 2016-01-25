@@ -98,10 +98,10 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 
   // any message counts as activity, so treat this mouse as primary if it's not decided, yet
   if( !mIsFirstUpdate )
-    InputSystemHelper::MakeThisKeyboardFirst( this);
+    InputSystemHelper::SortThisKeyboardToFront( this);
 
   if( !mIsFirstUpdate )
-    InputSystemHelper::DoKeyboardButton( this, (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed, mState, sizeof(mState) / sizeof( mState[0]));
+    DoKeyboardButton( (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -118,11 +118,33 @@ void WinKeyboard::SetFocus( bool pHasFocus)
     {
       if( IsSet( a) )
       {
-        mPrevState[a/64] |= (1ull << (a&63));
-        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false, mState, sizeof(mState) / sizeof( mState[0]));
+        DoKeyboardButton( (SNIIS::KeyCode) a, 0, false);
+        mPrevState[a / 64] |= (1ull << (a & 63));
       }
     }
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinKeyboard::DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed)
+{
+  // reroute to primary keyboard if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+  {
+    dynamic_cast<WinKeyboard *> (mSystem->GetKeyboardByCount( 0))->DoKeyboardButton( kc, unicode, isPressed);
+    return;
+  }
+
+  // small issue prevention: some additional keyboard might have buttons that this keyboard doesn't
+  if( kc >= NumKeys )
+    return;
+
+  // don't signal if it isn't an actual state change
+  if( IsSet(kc) == isPressed )
+    return;
+  Set( kc, isPressed);
+
+  InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -591,7 +591,7 @@ void InputSystemHelper::SortThisMouseToFront( Mouse* mouse)
     mouse->mWasSortedOnActivity = true;
     // find the first mouse in sequence which has not yet shown activity.
     Device* frontmouse = nullptr;
-    for( size_t c = 0; c < mouse->GetCount(); ++c )
+    for( size_t c = 0; c < mouse->GetCount() && !frontmouse; ++c )
       if( gInstance->GetMouseByCount( c)->mWasSortedOnActivity == false )
         frontmouse = gInstance->GetMouseByCount( c);
 
@@ -616,6 +616,7 @@ void InputSystemHelper::SortThisMouseToFront( Mouse* mouse)
     }
   }
 }
+
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
 {
@@ -624,7 +625,7 @@ void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
     keyboard->mWasSortedOnActivity = true;
     // find the first mouse in sequence which has not yet shown activity.
     Device* frontkeyboard = nullptr;
-    for( size_t c = 0; c < keyboard->GetCount(); ++c )
+    for( size_t c = 0; c < keyboard->GetCount() && !frontkeyboard; ++c )
       if( gInstance->GetKeyboardByCount( c)->mWasSortedOnActivity == false )
         frontkeyboard = gInstance->GetKeyboardByCount( c);
 

@@ -1,4 +1,4 @@
-/// @file SNIIS_Linux_Keyboard.cpp
+﻿/// @file SNIIS_Linux_Keyboard.cpp
 /// Linux implementation of keyboards
 
 #include "SNIIS_Linux.h"
@@ -1037,15 +1037,14 @@ void LinuxKeyboard::HandleEvent( const XIRawEvent& ev)
       if( kc != KC_UNASSIGNED && isPressed != IsSet( kc) )
       {
         if( !mIsFirstUpdate )
-          InputSystemHelper::MakeThisKeyboardFirst( this);
+          InputSystemHelper::SortThisKeyboardToFront( this);
 
         int shiftlevel = (IsSet( KC_LSHIFT) || IsSet( KC_RSHIFT)) ? 1 : 0;
         uint32_t sks = XKeycodeToKeysym( mSystem->GetDisplay(), key, shiftlevel);
         uint32_t unicode = ConvertKeysymToUnicode( sks);
 
-        Set( kc, isPressed);
         if( !mIsFirstUpdate )
-          InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
+          DoKeyboardButton( kc, unicode, isPressed);
       }
       break;
     }
@@ -1066,14 +1065,36 @@ void LinuxKeyboard::SetFocus( bool pHasFocus)
     {
       if( IsSet( a) )
       {
-        Set( a,  false);
+        DoKeyboardButton( (SNIIS::KeyCode) a, 0, false);
         mPrevState[a/64] |= (1ull << (a&63));
-        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false);
       }
     }
   }
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxKeyboard::DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed)
+{
+  // reroute to primary keyboard if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+  {
+    dynamic_cast<LinuxKeyboard*> (mSystem->GetKeyboardByCount( 0))->DoKeyboardButton( kc, unicode, isPressed);
+    return;
+  }
+
+  // small issue prevention: some additional keyboard might have buttons that this keyboard doesn't
+  if( kc >= mNumKeys )
+    return;
+
+  // don't signal if it isn't an actual state change
+  if( IsSet( kc) == isPressed )
+    return;
+  Set( kc, isPressed);
+
+  InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 void LinuxKeyboard::Set( size_t kc, bool set)
 {
   if( set )

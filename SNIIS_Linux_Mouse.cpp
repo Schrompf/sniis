@@ -1,4 +1,4 @@
-/// @file SNIIS_Linux_Mouse.cpp
+﻿/// @file SNIIS_Linux_Mouse.cpp
 /// Linux implementation of mice
 
 #include "SNIIS_Linux.h"
@@ -65,19 +65,26 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
     {
       size_t numReportedAxes = std::min( mAxes.size(), size_t( ev.valuators.mask_len*8));
       const double* values = ev.valuators.values;
+      static std::vector<double> diffs;
+      if( diffs.size() < numReportedAxes )
+        diffs.resize( numReportedAxes);
+      std::fill( diffs.begin(), diffs.end(), 0.0);
+
       for( size_t a = 0; a < numReportedAxes; ++a )
       {
         if( XIMaskIsSet( ev.valuators.mask, a) )
         {
           if( !mIsFirstUpdate )
-            InputSystemHelper::MakeThisMouseFirst( this);
+            InputSystemHelper::SortThisMouseToFront( this);
           double v = *values++;
           if( mAxes[a].isAbsolute )
-            mAxes[a].value = v;
+            diffs[a] = v - mAxes[a].value;
           else
-            mAxes[a].value += v;
+            diffs[a] = v;
         }
       }
+
+      DoMouseMove( diffs.data(), diffs.size());
       break;
     }
 
@@ -85,23 +92,23 @@ void LinuxMouse::HandleEvent( const XIRawEvent& ev)
     case XI_RawButtonRelease:
     {
       if( !mIsFirstUpdate )
-        InputSystemHelper::MakeThisMouseFirst( this);
+        InputSystemHelper::SortThisMouseToFront( this);
 
       size_t button = size_t( ev.detail);
       bool isPressed = (ev.evtype == XI_RawButtonPress);
       // Mouse wheel. There seem to be two of those, we treat them the same
       if( button >= 4 && button <= 7 )
       {
-        if( isPressed )
-          mState.wheel += ((button&1) == 0 ? 1 : -1);
+        if( isPressed && !mIsFirstUpdate )
+          DoMouseWheel( (button&1) == 0 ? 1.0 : -1.0);
       } else
       {
         --button;
         // we do "Left, Right, Middle", they do "Left, Middle, Right" - remap that
         if( button == 1 ) button = 2; else if( button == 2 ) button = 1;
         // announce
-        if( button < mButtons.size() )
-          DoMouseClick( button, isPressed);
+        if( button < mButtons.size() && !mIsFirstUpdate )
+          DoMouseButton( button, isPressed);
       }
       break;
     }
@@ -113,13 +120,62 @@ void LinuxMouse::EndUpdate()
 {
   if( !mIsFirstUpdate )
   {
-    // send the mouse move
-    if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
-      InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
-    // send the mouse wheel axis
-    if( mAxes[2].prevValue != mAxes[2].value )
-      InputSystemHelper::DoMouseWheel( this, mAxes[2].value);
+    // send the mouse move if we're primary or separate
+    if( mSystem->IsInMultiDeviceMode() || GetCount() == 0 )
+    {
+      if( mAxes[0].prevValue != mAxes[0].value || mAxes[1].prevValue != mAxes[1].value )
+        InputSystemHelper::DoMouseMove( this, mAxes[0].value, mAxes[1].value, mAxes[0].value - mAxes[0].prevValue, mAxes[1].value - mAxes[1].prevValue);
+      // send the wheel
+      if( mAxes[2].prevValue != mAxes[2].value )
+        InputSystemHelper::DoMouseWheel( this, float( mAxes[2].value));
+    }
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxMouse::DoMouseMove( double* diffs, size_t diffcount)
+{
+  // apply to our values. Necessary to make the difference calculation in HandleEvent() work correctly
+  for( size_t a = 0; a < std::min( diffcount, mAxes.size()); ++a )
+    mAxes[a].value += diffs[a];
+
+  // also reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    dynamic_cast<LinuxMouse*> (mSystem->GetMouseByCount( 0))->DoMouseMove( diffs, diffcount);
+
+  // callbacks are triggered from EndUpdate()
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxMouse::DoMouseWheel( double wheel)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<LinuxMouse*> (mSystem->GetMouseByCount( 0))->DoMouseWheel( wheel);
+
+  // store change
+  mAxes[2].value += wheel;
+
+  // callbacks are triggered from EndUpdate()
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void LinuxMouse::DoMouseButton( size_t btnIndex, bool isPressed)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<LinuxMouse*> (mSystem->GetMouseByCount( 0))->DoMouseButton( btnIndex, isPressed);
+
+  // don't signal if it isn't an actual state change
+  if( !!(mState.buttons & (1u << btnIndex)) == isPressed )
+    return;
+
+  // store state change
+  uint32_t bitmask = (1 << btnIndex);
+  mState.buttons = (mState.buttons & ~bitmask) | (isPressed ? bitmask : 0);
+
+  // and notify everyone interested
+  InputSystemHelper::DoMouseButton( this, btnIndex, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -128,7 +184,7 @@ void LinuxMouse::SetFocus( bool pHasFocus)
   if( pHasFocus )
   {
     // get current mouse position when in SingleMouseMode
-    if( !mSystem->IsInMultiDeviceMode() )
+    if( !mSystem->IsInMultiDeviceMode() && GetCount() == 0 )
     {
       Window wa, wb;
       int rootx, rooty, childx, childy;
@@ -148,24 +204,11 @@ void LinuxMouse::SetFocus( bool pHasFocus)
     {
       if( mState.buttons & (1 << a) )
       {
+        DoMouseButton( a, false);
         mState.prevButtons |= (1 << a);
-        mState.buttons &= std::numeric_limits<decltype( mState.buttons)>::max() ^ (1 << a);
-        InputSystemHelper::DoMouseButton( this, a, false);
       }
     }
   }
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-void LinuxMouse::DoMouseClick( int mouseButton, bool isDown )
-{
-  if( isDown )
-	  mState.buttons |= 1 << mouseButton;
-  else
-	  mState.buttons &= ~(1 << mouseButton); //turn the bit flag off
-
-  if( !mIsFirstUpdate )
-    InputSystemHelper::DoMouseButton( this, mouseButton, isDown);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -229,12 +272,12 @@ float LinuxMouse::GetAxisDifference( size_t idx) const
     return 0.0f;
 }
 // --------------------------------------------------------------------------------------------------------------------
-int LinuxMouse::GetMouseX() const { return int( GetAxisAbsolute( 0)); }
+float LinuxMouse::GetMouseX() const { return GetAxisAbsolute( 0); }
 // --------------------------------------------------------------------------------------------------------------------
-int LinuxMouse::GetMouseY() const { return int( GetAxisAbsolute( 1)); }
+float LinuxMouse::GetMouseY() const { return GetAxisAbsolute( 1); }
 // --------------------------------------------------------------------------------------------------------------------
-int LinuxMouse::GetRelMouseX() const { return int( GetAxisDifference( 0)); }
+float LinuxMouse::GetRelMouseX() const { return GetAxisDifference( 0); }
 // --------------------------------------------------------------------------------------------------------------------
-int LinuxMouse::GetRelMouseY() const { return int( GetAxisDifference( 1)); }
+float LinuxMouse::GetRelMouseY() const { return GetAxisDifference( 1); }
 
 #endif // SNIIS_SYSTEM_LINUX

@@ -1,4 +1,4 @@
-/// @file SNIIS_Linux.h
+﻿/// @file SNIIS_Linux.h
 /// Linux-specific classes
 
 #pragma once
@@ -58,7 +58,6 @@ class LinuxMouse : public SNIIS::Mouse
   std::vector<Axis> mAxes;
   struct State
   {
-    int wheel, prevWheel;
     uint32_t buttons, prevButtons;
   } mState;
 
@@ -79,12 +78,14 @@ public:
   bool WasButtonReleased( size_t idx) const override;
   float GetAxisAbsolute( size_t idx) const override;
   float GetAxisDifference( size_t idx) const override;
-  int GetMouseX() const override;
-  int GetMouseY() const override;
-  int GetRelMouseX() const override;
-  int GetRelMouseY() const override;
-protected:
-  void DoMouseClick( int mouseButton, bool isDown );
+  float GetMouseX() const override;
+  float GetMouseY() const override;
+  float GetRelMouseX() const override;
+  float GetRelMouseY() const override;
+private:
+  void DoMouseMove( double* diffs, size_t diffcount);
+  void DoMouseWheel( double wheel);
+  void DoMouseButton( size_t btnIndex, bool isPressed);
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -110,6 +111,7 @@ public:
   bool WasButtonPressed( size_t idx) const override;
   bool WasButtonReleased( size_t idx) const override;
 protected:
+  void DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed);
   void Set( size_t kc, bool set);
   bool IsSet( size_t kc) const;
   bool WasSet( size_t kc) const;

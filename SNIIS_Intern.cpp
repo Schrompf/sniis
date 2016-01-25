@@ -1,4 +1,4 @@
-/// @file SNIIS_Intern.cpp
+﻿/// @file SNIIS_Intern.cpp
 /// System-agnostic implementation parts
 
 #include "SNIIS_Intern.h"
@@ -394,18 +394,8 @@ void InputSystemHelper::AddDevice( Device* dev)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed, uint32_t& inoutButtonState)
+void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed)
 {
-  // reroute to primary mouse in SingleDeviceMode
-  if( !gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0 )
-    return DoMouseButton( gInstance->GetMouseByCount( 0), btnIndex, isPressed, inoutButtonState);
-
-  // track state in the given bitset
-  if( isPressed )
-    inoutButtonState |= 1 << btnIndex;
-  else
-    inoutButtonState &= ~(1 << btnIndex);
-
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
       return;
@@ -427,15 +417,8 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, float absx, float absy, floa
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff, float& inoutWheelState)
+void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
 {
-  // reroute to primary mouse in SingleDeviceMode
-  if (!gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0)
-    return DoMouseWheel(gInstance->GetMouseByCount(0), diff, inoutWheelState);
-
-  // track state
-  inoutWheelState += diff;
-
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseWheel( sender, diff) )
       return;
@@ -443,29 +426,8 @@ void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff, float& inoutWhe
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed, uint64_t* inoutState, size_t stateSize)
+void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
 {
-  // reroute to primary mouse in SingleDeviceMode
-  if (!gInstance->IsInMultiDeviceMode() && sender->GetCount() != 0)
-    return DoKeyboardButton( gInstance->GetKeyboardByCount( 0), kc, unicode, isPressed, inoutState, stateSize);
-
-  // shouldn't happen... kill it?
-  assert( size_t( kc) < 64 * stateSize );
-  if( size_t( kc) >= 64 * stateSize )
-    return;
-
-  // don't do anything if the state of the key doesn't actually change
-  uint64_t arrmask = 1ull << (kc & 63);
-  size_t arridx = kc / 64;
-  if( !!(inoutState[arridx] & arrmask) == isPressed )
-    return;
-
-  // store state of that specific key
-  if (isPressed)
-    inoutState[arridx] |= arrmask;
-  else
-    inoutState[arridx] &= UINT64_MAX ^ arrmask;
-
   // store for key repetition
   if( isPressed && gInstance->mKeyRepeatCfg.enable )
   {
@@ -622,44 +584,68 @@ void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float v
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::MakeThisMouseFirst( Mouse* mouse)
+void InputSystemHelper::SortThisMouseToFront( Mouse* mouse)
 {
-  if( gInstance->mReorderMiceOnActivity )
+  if( !mouse->mWasSortedOnActivity )
   {
-    gInstance->mReorderMiceOnActivity = false;
-    if( mouse != gInstance->mFirstMouse )
-    {
-      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, gInstance->mFirstMouse->mId, gInstance->mFirstMouse->mCount);
+    mouse->mWasSortedOnActivity = true;
+    // find the first mouse in sequence which has not yet shown activity.
+    Device* frontmouse = nullptr;
+    for( size_t c = 0; c < mouse->GetCount(); ++c )
+      if( gInstance->GetMouseByCount( c)->mWasSortedOnActivity == false )
+        frontmouse = gInstance->GetMouseByCount( c);
 
-      std::swap( mouse->mId, gInstance->mFirstMouse->mId);
-      std::swap( mouse->mCount, gInstance->mFirstMouse->mCount);
-      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstMouse));
+    // if we found a (yet) silent mouse in front of our active mouse, swap the two
+    if( frontmouse )
+    {
+      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, frontmouse->mId, frontmouse->mCount);
+
+      std::swap( mouse->mId, frontmouse->mId);
+      std::swap( mouse->mCount, frontmouse->mCount);
+      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (frontmouse));
       auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (mouse));
       assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
       std::swap( *fit, *mit);
-      gInstance->mFirstMouse = mouse;
-      // the sender mouse should now be the first mouse by any means, all channel mappings should adapt automatically
+
+      // if the new front mouse is the primary mouse now, also store it like this
+      if( frontmouse->GetCount() == 0 )
+        gInstance->mFirstMouse = dynamic_cast<Mouse*> (frontmouse);
+      assert( gInstance->mFirstMouse != nullptr );
+
+      // all channel mappings should adapt automatically
     }
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::MakeThisKeyboardFirst( Keyboard* keyboard)
+void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
 {
-  if( gInstance->mReorderKeyboardsOnActivity )
+  if( !keyboard->mWasSortedOnActivity )
   {
-    gInstance->mReorderKeyboardsOnActivity = false;
-    if( keyboard != gInstance->mFirstKeyboard )
-    {
-      gInstance->Log( "Swap keyboards due to activity: %d,%d and %d,%d",
-        keyboard->mId, keyboard->mCount, gInstance->mFirstKeyboard->mId, gInstance->mFirstKeyboard->mCount);
+    keyboard->mWasSortedOnActivity = true;
+    // find the first mouse in sequence which has not yet shown activity.
+    Device* frontkeyboard = nullptr;
+    for( size_t c = 0; c < keyboard->GetCount(); ++c )
+      if( gInstance->GetKeyboardByCount( c)->mWasSortedOnActivity == false )
+        frontkeyboard = gInstance->GetKeyboardByCount( c);
 
-      std::swap( keyboard->mId, gInstance->mFirstKeyboard->mId);
-      std::swap( keyboard->mCount, gInstance->mFirstKeyboard->mCount);
-      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (gInstance->mFirstKeyboard));
-      auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (keyboard));
-      assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
-      std::swap( *fit, *mit);
-      gInstance->mFirstKeyboard = keyboard;
+    // if we found a (yet) silent mouse in front of our active mouse, swap the two
+    if( frontkeyboard )
+    {
+      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", keyboard->mId, keyboard->mCount, frontkeyboard->mId, frontkeyboard->mCount);
+
+      std::swap( keyboard->mId, frontkeyboard->mId);
+      std::swap( keyboard->mCount, frontkeyboard->mCount);
+      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (frontkeyboard));
+      auto kit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (keyboard));
+      assert( fit != gInstance->mDevices.end() && kit != gInstance->mDevices.end());
+      std::swap( *fit, *kit);
+
+      // if the new front keyboard is the primary keyboard now, also store it like this
+      if( frontkeyboard->GetCount() == 0 )
+        gInstance->mFirstKeyboard = dynamic_cast<Keyboard*> (frontkeyboard);
+      assert( gInstance->mFirstKeyboard != nullptr );
+
+      // all channel mappings should adapt automatically
     }
   }
 }

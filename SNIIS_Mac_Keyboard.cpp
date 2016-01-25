@@ -379,10 +379,9 @@ void MacKeyboard::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uin
 
   // we're still there - it's an actual key stroke
   if( !mIsFirstUpdate )
-    InputSystemHelper::MakeThisKeyboardFirst( this);
+    InputSystemHelper::SortThisKeyboardToFront( this);
 
   bool isDown = (value != 0);
-  Set( kc, isDown);
 
   // translate to unicode char
   size_t uc = 0;
@@ -417,7 +416,29 @@ void MacKeyboard::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uin
   }
 
   if( !mIsFirstUpdate )
-    InputSystemHelper::DoKeyboardButton( this, kc, uc, isDown);
+    DoKeyboardKey( kc, uc, isDown);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void MacKeyboard::DoKeyboardKey( SNIIS::KeyCode kc, size_t unicode, bool isPressed)
+{
+  // reroute to primary keyboard if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+  {
+    dynamic_cast<MacKeyboard*> (mSystem->GetKeyboardByCount( 0))->DoKeyboardKey( kc, unicode, isPressed);
+    return;
+  }
+
+  // small issue prevention: some additional keyboard might have buttons that this keyboard doesn't
+  if( kc >= mNumKeys )
+    return;
+
+  // don't signal if it isn't an actual state change
+  if( IsSet( kc) == isPressed )
+    return;
+  Set( kc, isPressed);
+
+  InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -434,9 +455,8 @@ void MacKeyboard::SetFocus( bool pHasFocus)
     {
       if( IsSet( a) )
       {
-        Set( a,  false);
+        DoKeyboardKey( (SNIIS::KeyCode) a, 0, false);
         mPrevState[a/64] |= (1ull << (a&63));
-        InputSystemHelper::DoKeyboardButton( this, (SNIIS::KeyCode) a, 0, false);
       }
     }
   }

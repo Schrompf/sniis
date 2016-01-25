@@ -107,10 +107,13 @@ public:
   bool WasButtonReleased( size_t idx) const override;
   float GetAxisAbsolute( size_t idx) const override;
   float GetAxisDifference( size_t idx) const override;
-  int GetMouseX() const override;
-  int GetMouseY() const override;
-  int GetRelMouseX() const override;
-  int GetRelMouseY() const override;
+  float GetMouseX() const override;
+  float GetMouseY() const override;
+  float GetRelMouseX() const override;
+  float GetRelMouseY() const override;
+private:
+  void DoMouseWheel( float wheel);
+  void DoMouseButton( size_t btnIndex, bool isPressed);
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -136,6 +139,7 @@ public:
   bool WasButtonPressed( size_t idx) const override;
   bool WasButtonReleased( size_t idx) const override;
 protected:
+  void DoKeyboardKey(SNIIS::KeyCode kc, size_t unicode, bool isPressed);
   void Set( size_t kc, bool set);
   bool IsSet( size_t kc) const;
   bool WasSet( size_t kc) const;

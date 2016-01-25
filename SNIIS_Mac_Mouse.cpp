@@ -90,7 +90,7 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
   SNIIS_UNUSED( usage);
 
   if( value != 0 && !mIsFirstUpdate )
-    InputSystemHelper::MakeThisMouseFirst( this);
+    InputSystemHelper::SortThisMouseToFront( this);
 
   const auto& axes = dev == mDevice ? mAxes : mSecondaryAxes;
   auto axit = std::find_if( axes.cbegin(), axes.cend(), [&](const MacControl& c) { return c.mCookie == cookie; });
@@ -105,14 +105,24 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
     }
     else
     {
-      // first two axes are pixel-sized, third axis is mouse wheel, so all three can't be normalized
-      if( idx < 3 )
+      // first two axes are pixel-sized position, which we care for only in multi-mouse mode
+      if( idx < 2 )
       {
-        if( mSystem->IsInMultiDeviceMode() || idx >= 2 )
+        // in single mouse mode the position will be queried from the OS in EndUpdate()
+        if( mSystem->IsInMultiDeviceMode() )
           mState.axes[idx] += float( value);
-      } else
+      }
+      else if( idx < 3 )
       {
-        mState.axes[idx] += float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+        DoMouseWheel( float( value));
+      }
+      else
+      {
+        // try to tell one-sided axes apart from symmetric axes and act accordingly
+        if( std::abs( axit->mMin) <= std::abs( axit->mMax) / 10 )
+          mState.axes[idx] = float( value - axit->mMin) / float( axit->mMax - axit->mMin);
+        else
+          mState.axes[idx] = (float( value - axit->mMin) / float( axit->mMax - axit->mMin)) * 2.0f - 1.0f;
       }
     }
   }
@@ -124,10 +134,8 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
     {
       size_t idx = std::distance( btns.cbegin(), buttit);
       bool isDown = (value != 0);
-      mState.buttons = (mState.buttons & (UINT32_MAX ^ (1u << idx))) | ((isDown ? 1u : 0u) << idx);
-      // send buttons right away, maybe makes working under slow framerates more reliable
       if( !mIsFirstUpdate )
-        InputSystemHelper::DoMouseButton( this, idx, isDown);
+        DoMouseButton( idx, isDown);
     }
   }
 }
@@ -177,6 +185,38 @@ void MacMouse::EndUpdate()
       if( mState.axes[a] != mState.prevAxes[a] )
         InputSystemHelper::DoAnalogEvent( this, a, mState.axes[a]);
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void MacMouse::DoMouseWheel( float wheel)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<MacMouse*> (mSystem->GetMouseByCount( 0))->DoMouseWheel( wheel);
+
+  // store change
+  mState.axes[2] += wheel;
+
+  // callbacks are triggered from EndUpdate()
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void MacMouse::DoMouseButton( size_t btnIndex, bool isPressed)
+{
+  // reroute to primary mouse if we're in SingleDeviceMode
+  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
+    return dynamic_cast<MacMouse*> (mSystem->GetMouseByCount( 0))->DoMouseButton( btnIndex, isPressed);
+
+  // don't signal if it isn't an actual state change
+  if( !!(mState.buttons & (1u << btnIndex)) == isPressed )
+    return;
+
+  // store state change
+  uint32_t bitmask = (1 << btnIndex);
+  mState.buttons = (mState.buttons & ~bitmask) | (isPressed ? bitmask : 0);
+
+  // and notify everyone interested
+  InputSystemHelper::DoMouseButton( this, btnIndex, isPressed);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -269,12 +309,12 @@ float MacMouse::GetAxisDifference( size_t idx) const
     return 0.0f;
 }
 // --------------------------------------------------------------------------------------------------------------------
-int MacMouse::GetMouseX() const { return int( GetAxisAbsolute( 0)); }
+float MacMouse::GetMouseX() const { return GetAxisAbsolute( 0); }
 // --------------------------------------------------------------------------------------------------------------------
-int MacMouse::GetMouseY() const { return int( GetAxisAbsolute( 1)); }
+float MacMouse::GetMouseY() const { return GetAxisAbsolute( 1); }
 // --------------------------------------------------------------------------------------------------------------------
-int MacMouse::GetRelMouseX() const { return int( GetAxisDifference( 0)); }
+float MacMouse::GetRelMouseX() const { return GetAxisDifference( 0); }
 // --------------------------------------------------------------------------------------------------------------------
-int MacMouse::GetRelMouseY() const { return int( GetAxisDifference( 1)); }
+float MacMouse::GetRelMouseY() const { return GetAxisDifference( 1); }
 
 #endif // SNIIS_SYSTEM_MAC

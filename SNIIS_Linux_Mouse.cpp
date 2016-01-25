@@ -128,6 +128,10 @@ void LinuxMouse::EndUpdate()
       // send the wheel
       if( mAxes[2].prevValue != mAxes[2].value )
         InputSystemHelper::DoMouseWheel( this, float( mAxes[2].value));
+      // send the other axes, if there are any
+      for( size_t a = 3; a < mAxes.size(); ++a )
+        if( mState.axes[a] != mState.prevAxes[a] )
+          InputSystemHelper::DoAnalogEvent( this, a, mState.axes[a]);
     }
   }
 }

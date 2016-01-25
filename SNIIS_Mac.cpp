@@ -162,11 +162,12 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
         bool isTrackpad = strncmp( tmp.data(), "Apple Internal Keyboard / Trackpad", 34) == 0;
         if( isTrackpad && lastMouse && lastMouse->IsTrackpad() )
         {
+          Log( "-> second HID of internal trackpad, adding to Mouse %d (id %d)", lastMouse->GetCount(), lastMouse->GetId());
           lastMouse->AddDevice( device);
         }
         else
         {
-          Log( "Mouse %d (id %d)", mDevices.size(), mNumMice);
+          Log( "-> Mouse %d (id %d)", mNumMice, mDevices.size());
           auto m = new MacMouse( this, mDevices.size(), device, isTrackpad);
           InputSystemHelper::AddDevice( m);
           mMacDevices.push_back( m);
@@ -184,6 +185,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
     case kHIDUsage_GD_Keypad:
     {
       try {
+        Log( "-> Keyboard %d (id %d)", mNumKeyboards, mDevices.size());
         auto k = new MacKeyboard( this, mDevices.size(), device);
         InputSystemHelper::AddDevice( k);
         mMacDevices.push_back( k);
@@ -199,6 +201,7 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
     case kHIDUsage_GD_MultiAxisController:
     {
       try {
+        Log( "-> Controller %d (id %d)", mNumJoysticks, mDevices.size());
         auto j = new MacJoystick( this, mDevices.size(), device);
         InputSystemHelper::AddDevice( j);
         mMacDevices.push_back( j);

@@ -33,6 +33,13 @@ void WinMouse::StartUpdate()
   // the wndproc to get those messages, too, but those will now call our ParseMessage() *after* our EndUpdate() is done.
   // So in order to collect and broadcast those messages, too, we reset the state in EndUpdate() and thus carry any
   // lost RawInput messages over to the Update() of next frame.
+
+  // except for the buttons and wheel, because that is calculated and broadcasted immediatly
+  mState.prevButtons = mState.buttons;
+  mState.prevWheel = mState.wheel; mState.wheel = 0;
+  // that plops back the wheel to zero. Broadcast this as well
+  if( mState.prevWheel != 0 )
+    DoMouseWheel( 0.0f);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -130,8 +137,6 @@ void WinMouse::EndUpdate()
     InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
 
   mState.relX = mState.relY = 0;
-  mState.prevButtons = mState.buttons;
-  mState.prevWheel = mState.wheel; mState.wheel = 0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -250,7 +255,7 @@ float WinMouse::GetAxisAbsolute( size_t idx) const
   {
     case 0: return float( mState.absX);
     case 1: return float( mState.absY);
-    case 2: return float( mState.prevWheel); // because of the zeroing in EndUpdate() prev contains the accumulated wheel of last frame
+    case 2: return float( mState.wheel); 
     default: return 0.0f;
   }
 }

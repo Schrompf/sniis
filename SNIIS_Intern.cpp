@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cassert>
 
-#include "../Traumklassen/TraumBasis.h"
-
 using namespace SNIIS;
 
 namespace SNIIS

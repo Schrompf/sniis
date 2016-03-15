@@ -7,6 +7,7 @@
 
 #if SNIIS_SYSTEM_MAC
 
+#include <cmath>
 #include <IOKit/hid/IOHIDLib.h>
 #include <CoreGraphics/CoreGraphics.h>
 

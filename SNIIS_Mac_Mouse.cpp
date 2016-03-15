@@ -6,7 +6,6 @@
 
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
-#include "../Traumklassen/TraumBasis.h"
 
 // --------------------------------------------------------------------------------------------------------------------
 MacMouse::MacMouse( MacInput* pSystem, size_t pId, IOHIDDeviceRef pDeviceRef, bool isTrackpad)
@@ -119,7 +118,7 @@ void MacMouse::HandleEvent(IOHIDDeviceRef dev, IOHIDElementCookie cookie, uint32
       else
       {
         // try to tell one-sided axes apart from symmetric axes and act accordingly
-        if( std::abs( axit->mMin) <= std::abs( axit->mMax) / 10 )
+        if( abs( axit->mMin) <= abs( axit->mMax) / 10 )
           mState.axes[idx] = float( value - axit->mMin) / float( axit->mMax - axit->mMin);
         else
           mState.axes[idx] = (float( value - axit->mMin) / float( axit->mMax - axit->mMin)) * 2.0f - 1.0f;

@@ -7,8 +7,6 @@
 #if SNIIS_SYSTEM_WINDOWS
 using namespace SNIIS;
 
-#include "../Traumklassen/TraumBasis.h"
-
 // --------------------------------------------------------------------------------------------------------------------
 WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   : Mouse( pId), mSystem( pSystem), mHandle( pHandle)

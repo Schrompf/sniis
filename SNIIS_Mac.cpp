@@ -7,35 +7,41 @@
 #if SNIIS_SYSTEM_MAC
 using namespace SNIIS;
 
-#include "../Traumklassen/TraumBasis.h"
-
 // --------------------------------------------------------------------------------------------------------------------
 // Constructor
 MacInput::MacInput(id pWindowId)
 {
   mWindow = pWindowId;
 
+
+  Log( "A:");
   // create the manager
   mHidManager = IOHIDManagerCreate( kCFAllocatorDefault, 0);
   if( !mHidManager )
     throw std::runtime_error( "Failed to create HIDManager");
 
+  Log( "B:");
   // tell 'em we want it all
   IOHIDManagerSetDeviceMatching( mHidManager, nullptr);
+  Log( "C:");
   // register our enumeration callback
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, &MacInput::HandleNewDeviceCallback, (void*) this);
+  Log( "D:");
   // register us for running the event loop
   IOHIDManagerScheduleWithRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 
   // and open the manager, enumerating all devices along with it
+  Log( "E:");
   IOReturn res = IOHIDManagerOpen( mHidManager, 0);
   if( res != kIOReturnSuccess )
     throw std::runtime_error( "Failed to open HIDManager / enumerate devices");
 
+  Log( "F:");
   // run the update loop to get the callbacks for new devices
   while( CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, TRUE) == kCFRunLoopRunHandledSource )
     /**/;
 
+  Log( "G:");
   // remove the manager from the callbacks and runloop
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, nullptr, nullptr);
   // Since some OSX update the Unschedule() thingy also unschedules all devices, so we never get any event notifications
@@ -47,9 +53,11 @@ MacInput::MacInput(id pWindowId)
 // Destructor
 MacInput::~MacInput()
 {
+  Log( "Shutdown A");
   for( auto d : mDevices )
     delete d;
 
+  Log( "Shutdown B");
   if( mHidManager )
     IOHIDManagerClose( mHidManager, 0);
   CFRelease( mHidManager);
@@ -59,6 +67,8 @@ MacInput::~MacInput()
 // Updates the inputs, to be called before handling system messages
 void MacInput::Update()
 {
+  Log( "Update with %d devices", mMacDevices.size());
+
   // Basis work
   InputSystem::Update();
 
@@ -119,6 +129,7 @@ void MacInput::HandleNewDeviceCallback( void* context, IOReturn result, void* se
   if( result == kIOReturnSuccess )
   {
     auto inp = reinterpret_cast<MacInput*> (context);
+    inp->Log( "HandleNewDeviceCallback for deviceref %x", device);
     inp->HandleNewDevice( device);
   }
 }
@@ -136,18 +147,27 @@ void MacInput::HandleNewDevice( IOHIDDeviceRef device)
   if( ref )
     CFNumberGetValue( (CFNumberRef) ref, kCFNumberSInt32Type, &usage);
 
-  if( usepage != kHIDPage_GenericDesktop )
-    return;
-
   // get the names
   auto cfstr = (CFStringRef) IOHIDDeviceGetProperty( device, CFSTR(kIOHIDProductKey));
   auto cfstr2 = (CFStringRef) IOHIDDeviceGetProperty( device, CFSTR(kIOHIDManufacturerKey));
 
   std::vector<char> tmp( 500, 0);
-  CFStringGetCString( cfstr, &tmp[0], tmp.size(), kCFStringEncodingUTF8);
+  if( cfstr )
+    CFStringGetCString( cfstr, &tmp[0], tmp.size(), kCFStringEncodingUTF8);
+  else
+    sprintf( &tmp[0], "(null)");
+
   size_t l = strlen( tmp.data());
   tmp[l++] = '|';
-  CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
+  if( cfstr2 )
+    CFStringGetCString( cfstr2, &tmp[l], tmp.size() - l, kCFStringEncodingUTF8);
+  else
+    sprintf( &tmp[l], "(null)");
+
+  Log( "HandleNewDevice \"%s\", page %d, usage %d", tmp.data(), usepage, usage);
+
+  if( usepage != kHIDPage_GenericDesktop )
+    return;
 
   Log( "New device \"%s\" at page %d, usage %d", tmp.data(), usepage, usage);
 

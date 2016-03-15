@@ -6,7 +6,6 @@
 
 #if SNIIS_SYSTEM_LINUX
 using namespace SNIIS;
-#include "../Traumklassen/TraumBasis.h"
 
 #include <cstring>
 #include <sstream>

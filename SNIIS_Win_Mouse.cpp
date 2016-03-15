@@ -15,6 +15,8 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   mState.relX = mState.relY = 0.0f;
   mState.wheel = mState.prevWheel = 0.0f;
   mState.buttons = mState.prevButtons = 0;
+  mIsInUpdate = false;
+  mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
 
   // read initial position, assume single mouse mode
   POINT point;
@@ -38,6 +40,11 @@ void WinMouse::StartUpdate()
   // that plops back the wheel to zero. Broadcast this as well
   if( mState.prevWheel != 0 )
     DoMouseWheel( 0.0f);
+
+  // take over the OutOfUpdate differences
+  mState.relX = mOutOfUpdateRelX; mState.relY = mOutOfUpdateRelY;
+  mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
+  mIsInUpdate = true;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -74,12 +81,15 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
   // Movement
   if( mSystem->IsInMultiDeviceMode() )
   {
+    float& relx = mIsInUpdate ? mState.relX : mOutOfUpdateRelX;
+    float& rely = mIsInUpdate ? mState.relY : mOutOfUpdateRelY;
+
     if( (mouse.usFlags & 1) == MOUSE_MOVE_RELATIVE )
     {
       if( mouse.lLastX != 0 || mouse.lLastY != 0 )
       {
-        mState.relX += float( mouse.lLastX); mState.absX += float( mouse.lLastX);
-        mState.relY += float( mouse.lLastY); mState.absY += float( mouse.lLastY);
+        relx += float( mouse.lLastX); mState.absX += float( mouse.lLastX);
+        rely += float( mouse.lLastY); mState.absY += float( mouse.lLastY);
       }
     }
     else
@@ -88,8 +98,8 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
       if( mState.absX != float( mouse.lLastX) || mState.absY != float( mouse.lLastY) )
       {
         mState.absX = float( mouse.lLastX); mState.absY = float( mouse.lLastY);
-        mState.relX += mState.absX - preX;
-        mState.relY += mState.absY - preY;
+        relx += mState.absX - preX;
+        rely += mState.absY - preY;
       }
     }
   }
@@ -98,6 +108,9 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::EndUpdate()
 {
+  mIsInUpdate = false;
+  mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
+
   // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
   // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
   if( !mSystem->IsInMultiDeviceMode() && mSystem->HasFocus() && mCount == 0 )
@@ -133,8 +146,6 @@ void WinMouse::EndUpdate()
   // send the mouse move
   if( mState.relX != 0 || mState.relY != 0 )
     InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
-
-  mState.relX = mState.relY = 0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -78,6 +78,8 @@ class WinMouse : public SNIIS::Mouse
     float wheel, prevWheel;
     uint32_t buttons, prevButtons;
   } mState;
+  bool mIsInUpdate;
+  float mOutOfUpdateRelX, mOutOfUpdateRelY;
 
 public:
   WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle);

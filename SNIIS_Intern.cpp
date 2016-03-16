@@ -4,6 +4,7 @@
 #include "SNIIS_Intern.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdarg>
 
 using namespace SNIIS;
 

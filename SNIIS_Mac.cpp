@@ -13,35 +13,28 @@ MacInput::MacInput(id pWindowId)
 {
   mWindow = pWindowId;
 
-
-  Log( "A:");
   // create the manager
   mHidManager = IOHIDManagerCreate( kCFAllocatorDefault, 0);
   if( !mHidManager )
     throw std::runtime_error( "Failed to create HIDManager");
 
-  Log( "B:");
   // tell 'em we want it all
   IOHIDManagerSetDeviceMatching( mHidManager, nullptr);
-  Log( "C:");
   // register our enumeration callback
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, &MacInput::HandleNewDeviceCallback, (void*) this);
-  Log( "D:");
   // register us for running the event loop
   IOHIDManagerScheduleWithRunLoop( mHidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 
   // and open the manager, enumerating all devices along with it
-  Log( "E:");
   IOReturn res = IOHIDManagerOpen( mHidManager, 0);
+  Log( "IOHIDManagerOpen() returned %d", res);
   if( res != kIOReturnSuccess )
     throw std::runtime_error( "Failed to open HIDManager / enumerate devices");
 
-  Log( "F:");
   // run the update loop to get the callbacks for new devices
   while( CFRunLoopRunInMode( kCFRunLoopDefaultMode, 0, TRUE) == kCFRunLoopRunHandledSource )
     /**/;
 
-  Log( "G:");
   // remove the manager from the callbacks and runloop
   IOHIDManagerRegisterDeviceMatchingCallback( mHidManager, nullptr, nullptr);
   // Since some OSX update the Unschedule() thingy also unschedules all devices, so we never get any event notifications
@@ -53,11 +46,9 @@ MacInput::MacInput(id pWindowId)
 // Destructor
 MacInput::~MacInput()
 {
-  Log( "Shutdown A");
   for( auto d : mDevices )
     delete d;
 
-  Log( "Shutdown B");
   if( mHidManager )
     IOHIDManagerClose( mHidManager, 0);
   CFRelease( mHidManager);
@@ -67,8 +58,6 @@ MacInput::~MacInput()
 // Updates the inputs, to be called before handling system messages
 void MacInput::Update()
 {
-  Log( "Update with %d devices", mMacDevices.size());
-
   // Basis work
   InputSystem::Update();
 
@@ -129,7 +118,6 @@ void MacInput::HandleNewDeviceCallback( void* context, IOReturn result, void* se
   if( result == kIOReturnSuccess )
   {
     auto inp = reinterpret_cast<MacInput*> (context);
-    inp->Log( "HandleNewDeviceCallback for deviceref %x", device);
     inp->HandleNewDevice( device);
   }
 }
@@ -335,9 +323,11 @@ bool InputSystem::Initialize(void* pInitArg)
   try
   {
     gInstance = new MacInput( pInitArg);
-  } catch( std::exception& )
+  } catch( std::exception& e)
   {
     // nope
+    if( gLogCallback )
+      gLogCallback( (std::string( "Exception while creating SNIIS instance: ") + e.what()).c_str());
     gInstance = nullptr;
     return false;
   }

@@ -432,9 +432,11 @@ bool InputSystem::Initialize(void* pInitArg)
   try 
   {
     gInstance = new WinInput( (HWND) pInitArg);
-  } catch( std::exception& )
+  } catch( std::exception& e)
   {
     // nope
+    if( gLogCallback )
+      gLogCallback( (std::string( "Exception while creating SNIIS instance: ") + e.what()).c_str());
     gInstance = nullptr;
     return false;
   }

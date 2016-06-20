@@ -607,8 +607,8 @@ void InputSystemHelper::SortThisMouseToFront( Mouse* mouse)
       std::swap( *fit, *mit);
 
       // if the new front mouse is the primary mouse now, also store it like this
-      if( frontmouse->GetCount() == 0 )
-        gInstance->mFirstMouse = dynamic_cast<Mouse*> (frontmouse);
+      if( mouse->GetCount() == 0 )
+        gInstance->mFirstMouse = dynamic_cast<Mouse*> (mouse);
       assert( gInstance->mFirstMouse != nullptr );
 
       // all channel mappings should adapt automatically
@@ -641,8 +641,8 @@ void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
       std::swap( *fit, *kit);
 
       // if the new front keyboard is the primary keyboard now, also store it like this
-      if( frontkeyboard->GetCount() == 0 )
-        gInstance->mFirstKeyboard = dynamic_cast<Keyboard*> (frontkeyboard);
+      if( keyboard->GetCount() == 0 )
+        gInstance->mFirstKeyboard = dynamic_cast<Keyboard*> (keyboard);
       assert( gInstance->mFirstKeyboard != nullptr );
 
       // all channel mappings should adapt automatically

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cassert>
 #include <map>
+#include <stdexcept>
 
 #define NOMINMAX
 #define VC_EXTRALEAN

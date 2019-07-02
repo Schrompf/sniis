@@ -432,17 +432,17 @@ public:
   float GetRelMouseY() const { return mFirstMouse ? mFirstMouse->GetRelMouseY() : 0; }
 
   bool IsKeyDown( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->IsKeyDown( key) : false; }
-  bool WasKeyReleased( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyPressed( key) : false; }
-  bool WasKeyPressed( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyReleased( key) : false; }
+  bool WasKeyReleased( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyReleased( key) : false; }
+  bool WasKeyPressed( KeyCode key) const { return mFirstKeyboard ? mFirstKeyboard->WasKeyPressed( key) : false; }
 
   bool IsMouseDown( size_t btnId) const { return mFirstMouse ? mFirstMouse->IsButtonDown( btnId) : false; }
-  bool WasMouseReleased( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonPressed( btnId) : false; }
-  bool WasMousePressed( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonReleased( btnId) : false; }
+  bool WasMouseReleased( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonReleased( btnId) : false; }
+  bool WasMousePressed( size_t btnId) const { return mFirstMouse ? mFirstMouse->WasButtonPressed( btnId) : false; }
   float GetMouseWheelDiff() const { return mFirstMouse ? mFirstMouse->GetAxisAbsolute( 2) : 0.0f; }
 
   bool IsJoyDown( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->IsButtonDown( btnId) : false; }
-  bool WasJoyReleased( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonPressed( btnId) : false; }
-  bool WasJoyPressed( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonReleased( btnId) : false; }
+  bool WasJoyReleased( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonReleased( btnId) : false; }
+  bool WasJoyPressed( size_t btnId) const { return mFirstJoystick ? mFirstJoystick->WasButtonPressed( btnId) : false; }
   float GetJoyAxisAbsolute( size_t axisId) const { return mFirstJoystick ? mFirstJoystick->GetAxisAbsolute( axisId) : 0.0f; }
   float GetJoyAxisDifference( size_t axisId) const { return mFirstJoystick ? mFirstJoystick->GetAxisDifference( axisId) : 0.0f; }
 

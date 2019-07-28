@@ -622,16 +622,16 @@ void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
   if( !keyboard->mWasSortedOnActivity )
   {
     keyboard->mWasSortedOnActivity = true;
-    // find the first mouse in sequence which has not yet shown activity.
+    // find the first keyboard in sequence which has not yet shown activity.
     Device* frontkeyboard = nullptr;
     for( size_t c = 0; c < keyboard->GetCount() && !frontkeyboard; ++c )
       if( gInstance->GetKeyboardByCount( c)->mWasSortedOnActivity == false )
         frontkeyboard = gInstance->GetKeyboardByCount( c);
 
-    // if we found a (yet) silent mouse in front of our active mouse, swap the two
+    // if we found a (yet) silent keyboard in front of our active mouse, swap the two
     if( frontkeyboard )
     {
-      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", keyboard->mId, keyboard->mCount, frontkeyboard->mId, frontkeyboard->mCount);
+      gInstance->Log( "Swap keyboards due to activity: %d,%d and %d,%d", keyboard->mId, keyboard->mCount, frontkeyboard->mId, frontkeyboard->mCount);
 
       std::swap( keyboard->mId, frontkeyboard->mId);
       std::swap( keyboard->mCount, frontkeyboard->mCount);

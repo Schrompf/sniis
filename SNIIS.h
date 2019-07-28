@@ -262,8 +262,8 @@ public:
   Keyboard(size_t pId) : Device(pId) { }
 
   virtual bool IsKeyDown(KeyCode key) const { return IsButtonDown(size_t(key)); }
-  virtual bool WasKeyReleased(KeyCode key) const { return WasButtonPressed(size_t(key)); }
-  virtual bool WasKeyPressed(KeyCode key) const { return WasButtonReleased(size_t(key)); }
+  virtual bool WasKeyReleased(KeyCode key) const { return WasButtonReleased(size_t(key)); }
+  virtual bool WasKeyPressed(KeyCode key) const { return WasButtonPressed(size_t(key)); }
 };
 
 /// A joystick is also a Device, but a pretty useless one except for the type.

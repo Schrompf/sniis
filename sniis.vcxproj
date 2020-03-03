@@ -46,7 +46,7 @@
     <ProjectGuid>{04C54BD5-5018-4BB7-9019-41C5156E3507}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>sniis</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -67,6 +67,7 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v142</PlatformToolset>
+    <EnableASAN>false</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -112,6 +113,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MinimalRebuild>false</MinimalRebuild>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -148,8 +152,7 @@
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>Full</Optimization>
-      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <Optimization>MaxSpeed</Optimization>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsWinRT>false</CompileAsWinRT>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -158,10 +161,14 @@
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
       <CompileAsManaged>false</CompileAsManaged>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>false</OpenMPSupport>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

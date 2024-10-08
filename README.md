@@ -1,3 +1,5 @@
+SNIIS is not maintained here anymore because github chose to be assholes.
+
 # sniis
 Simple Non-Intrusive Input System
 

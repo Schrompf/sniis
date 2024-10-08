@@ -119,7 +119,7 @@ void WinMouse::EndUpdate()
     GetCursorPos( &currMousePos);
     ScreenToClient( mSystem->GetWindowHandle(), &currMousePos);
     // if mouse is grabbed, accumulate offset from center and then move pointer back to that center
-    if( currMousePos.x >= 0 && currMousePos.y >= 0 && currMousePos.x < 20000 && currMousePos.y < 20000 )
+//    if( currMousePos.x >= 0 && currMousePos.y >= 0 && currMousePos.x < 20000 && currMousePos.y < 20000 )
     {
       if( mSystem->IsMouseGrabbed() )
       {

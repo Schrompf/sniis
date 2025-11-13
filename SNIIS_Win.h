@@ -137,7 +137,7 @@ protected:
   void Set( size_t kc, bool set);
   bool IsSet( size_t kc) const;
   bool WasSet( size_t kc) const;
-  size_t TranslateText( size_t kc);
+  size_t TranslateText( uint32_t kc);
 };
 
 /// -------------------------------------------------------------------------------------------------------------------

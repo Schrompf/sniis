@@ -32,9 +32,9 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
     ptr += 8;
   const auto& kbd = *(reinterpret_cast<const RAWKEYBOARD*> (ptr));
 
-  size_t scanCode = kbd.MakeCode;
-  size_t virtualKey = kbd.VKey;
-  size_t flags = kbd.Flags;
+  uint32_t scanCode = kbd.MakeCode;
+  uint32_t virtualKey = kbd.VKey;
+  uint32_t flags = kbd.Flags;
   bool pressed = !(flags & RI_KEY_BREAK);
 
   // all logic gratefully taken from http://molecularmusings.wordpress.com/2011/09/05/properly-handling-keyboard-input/
@@ -148,7 +148,7 @@ void WinKeyboard::DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPr
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-size_t WinKeyboard::TranslateText( size_t kc)
+size_t WinKeyboard::TranslateText( uint32_t kc)
 {
 	BYTE keyState[256];
 	HKL  layout = GetKeyboardLayout(0);

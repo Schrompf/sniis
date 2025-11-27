@@ -9,7 +9,7 @@ using namespace SNIIS;
 
 // --------------------------------------------------------------------------------------------------------------------
 WinKeyboard::WinKeyboard( WinInput* pSystem, size_t pId, HANDLE pHandle, IDirectInputDevice8* pDirectInputKeyboard)
-  : Keyboard( pId), mSystem( pSystem), mHandle( pHandle), mKeyboard( pDirectInputKeyboard)
+  : Keyboard( pId, !pHandle), mSystem( pSystem), mHandle( pHandle), mKeyboard( pDirectInputKeyboard)
 {
   memset( mState, 0, sizeof( mState));
   memset( mPrevState, 0, sizeof( mPrevState));
@@ -96,10 +96,6 @@ void WinKeyboard::ParseMessage( const RAWINPUT& e, bool useWorkaround)
     case VK_CLEAR: scanCode = !isE0 ? KC_NUMPAD5 : KC_NUMPAD5; break; // was isn VK_CLEAR?
   }
 
-  // any message counts as activity, so treat this mouse as primary if it's not decided, yet
-  if( !mIsFirstUpdate )
-    InputSystemHelper::SortThisKeyboardToFront( this);
-
   if( !mIsFirstUpdate )
     DoKeyboardButton( (KeyCode) scanCode, TranslateText( (KeyCode) scanCode), pressed);
 }
@@ -128,12 +124,9 @@ void WinKeyboard::SetFocus( bool pHasFocus)
 // --------------------------------------------------------------------------------------------------------------------
 void WinKeyboard::DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed)
 {
-  // reroute to primary keyboard if we're in SingleDeviceMode
-  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
-  {
+  // also apply to primary keyboard
+  if( !IsAssembled() )
     dynamic_cast<WinKeyboard *> (mSystem->GetKeyboardByCount( 0))->DoKeyboardButton( kc, unicode, isPressed);
-    return;
-  }
 
   // small issue prevention: some additional keyboard might have buttons that this keyboard doesn't
   if( kc >= NumKeys )

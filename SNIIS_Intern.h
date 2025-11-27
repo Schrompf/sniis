@@ -6,11 +6,6 @@
 
 namespace SNIIS
 {
-  /// Platform-agnostic base implementation of InputSystem
-  class BaseInputSystem : public InputSystem
-  {
-  };
-
   /// Platform-agnostic helper functions
   struct InputSystemHelper
   {
@@ -24,8 +19,6 @@ namespace SNIIS
     static void DoJoystickButton( Joystick* sender, size_t btnIndex, bool isPressed);
     static void DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed);
     static void DoAnalogEvent( Device* sender, size_t axisIndex, float value);
-    static void SortThisMouseToFront( Mouse* mouse);
-    static void SortThisKeyboardToFront( Keyboard* keyboard);
     static void UpdateChannels( Device* sender, size_t ctrlIndex, bool isAnalog);
   };
 }

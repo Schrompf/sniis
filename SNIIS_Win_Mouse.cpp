@@ -9,7 +9,7 @@ using namespace SNIIS;
 
 // --------------------------------------------------------------------------------------------------------------------
 WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
-  : Mouse( pId), mSystem( pSystem), mHandle( pHandle)
+  : Mouse( pId, pHandle == nullptr), mSystem( pSystem), mHandle( pHandle)
 {
   mState.absX = mState.absY = 0.0f;
   mState.relX = mState.relY = 0.0f;
@@ -18,7 +18,7 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   mIsInUpdate = false;
   mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
 
-  // read initial position, assume single mouse mode
+  // read initial position
   POINT point;
   GetCursorPos(&point);
   ScreenToClient( mSystem->GetWindowHandle(), &point);
@@ -58,10 +58,6 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
     ptr += 8;
   const RAWMOUSE& mouse = *(reinterpret_cast<const RAWMOUSE*> (ptr));
 
-  // any message counts as activity, so treat this mouse as primary if it's not decided, yet
-  if( !mIsFirstUpdate )
-    InputSystemHelper::SortThisMouseToFront( this);
-
   // Mouse buttons - Raw Input only supports five
   if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN ) DoMouseButton( MB_Left, true);
   if( mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP) DoMouseButton( MB_Left, false);
@@ -79,28 +75,25 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
     DoMouseWheel( float( short( mouse.usButtonData)));
 
   // Movement
-  if( mSystem->IsInMultiDeviceMode() )
-  {
-    float& relx = mIsInUpdate ? mState.relX : mOutOfUpdateRelX;
-    float& rely = mIsInUpdate ? mState.relY : mOutOfUpdateRelY;
+  float& relx = mIsInUpdate ? mState.relX : mOutOfUpdateRelX;
+  float& rely = mIsInUpdate ? mState.relY : mOutOfUpdateRelY;
 
-    if( (mouse.usFlags & 1) == MOUSE_MOVE_RELATIVE )
+  if( (mouse.usFlags & 1) == MOUSE_MOVE_RELATIVE )
+  {
+    if( mouse.lLastX != 0 || mouse.lLastY != 0 )
     {
-      if( mouse.lLastX != 0 || mouse.lLastY != 0 )
-      {
-        relx += float( mouse.lLastX); mState.absX += float( mouse.lLastX);
-        rely += float( mouse.lLastY); mState.absY += float( mouse.lLastY);
-      }
+      relx += float( mouse.lLastX); mState.absX += float( mouse.lLastX);
+      rely += float( mouse.lLastY); mState.absY += float( mouse.lLastY);
     }
-    else
+  }
+  else
+  {
+    float preX = mState.absX, preY = mState.absY;
+    if( mState.absX != float( mouse.lLastX) || mState.absY != float( mouse.lLastY) )
     {
-      float preX = mState.absX, preY = mState.absY;
-      if( mState.absX != float( mouse.lLastX) || mState.absY != float( mouse.lLastY) )
-      {
-        mState.absX = float( mouse.lLastX); mState.absY = float( mouse.lLastY);
-        relx += mState.absX - preX;
-        rely += mState.absY - preY;
-      }
+      mState.absX = float( mouse.lLastX); mState.absY = float( mouse.lLastY);
+      relx += mState.absX - preX;
+      rely += mState.absY - preY;
     }
   }
 }
@@ -111,35 +104,31 @@ void WinMouse::EndUpdate()
   mIsInUpdate = false;
   mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
 
-  // in Single Mouse Mode we discard all mouse movements and replace it by the global mouse position.
-  // Otherwise the movement would feel weird to the user because RawInput is missing all mouse acceleration and such
-  if( !mSystem->IsInMultiDeviceMode() && mSystem->HasFocus() && mCount == 0 )
+  // Assembled Mouse gets the global mouse position.
+  if( IsAssembled() )
   {
     POINT currMousePos;
     GetCursorPos( &currMousePos);
     ScreenToClient( mSystem->GetWindowHandle(), &currMousePos);
     // if mouse is grabbed, accumulate offset from center and then move pointer back to that center
-//    if( currMousePos.x >= 0 && currMousePos.y >= 0 && currMousePos.x < 20000 && currMousePos.y < 20000 )
+    if( mSystem->IsMouseGrabbed() )
     {
-      if( mSystem->IsMouseGrabbed() )
-      {
-        RECT rect;
-        GetWindowRect( mSystem->GetWindowHandle(), &rect);
-        POINT wndCenterPos = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
-        mState.relX = float( currMousePos.x - wndCenterPos.x);
-        mState.relY = float( currMousePos.y - wndCenterPos.y);
-        mState.absX += mState.relX; mState.absY += mState.relY;
-        ClientToScreen( mSystem->GetWindowHandle(), &wndCenterPos);
-        SetCursorPos( wndCenterPos.x, wndCenterPos.y);
-      } else
-      {
-        // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the
-        // global mouse movement to get expected mouse acceleration and such at least.
-        float prevAbsX = mState.absX, prevAbsY = mState.absY;
-        mState.absX = float( currMousePos.x); mState.absY = float( currMousePos.y);
-        mState.relX = mState.absX - prevAbsX;
-        mState.relY = mState.absY - prevAbsY;
-      }
+      RECT rect;
+      GetWindowRect( mSystem->GetWindowHandle(), &rect);
+      POINT wndCenterPos = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
+      mState.relX = float( currMousePos.x - wndCenterPos.x);
+      mState.relY = float( currMousePos.y - wndCenterPos.y);
+      mState.absX += mState.relX; mState.absY += mState.relY;
+      ClientToScreen( mSystem->GetWindowHandle(), &wndCenterPos);
+      SetCursorPos( wndCenterPos.x, wndCenterPos.y);
+    } else
+    {
+      // single mouse mode without grabbing: we're not allowed to lock the mouse like this, so we simply mirror the
+      // global mouse movement to get expected mouse acceleration and such at least.
+      float prevAbsX = mState.absX, prevAbsY = mState.absY;
+      mState.absX = float( currMousePos.x); mState.absY = float( currMousePos.y);
+      mState.relX = mState.absX - prevAbsX;
+      mState.relY = mState.absY - prevAbsY;
     }
   }
 
@@ -151,22 +140,22 @@ void WinMouse::EndUpdate()
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::DoMouseWheel( float wheel)
 {
-  // reroute to primary mouse if we're in SingleDeviceMode
-  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
-    return dynamic_cast<WinMouse*> (mSystem->GetMouseByCount(0))->DoMouseWheel( wheel);
+  // also apply to primary mouse 
+  if( !IsAssembled() )
+    dynamic_cast<WinMouse*> (mSystem->GetMouseByCount(0))->DoMouseWheel( wheel);
 
   // store change
   mState.wheel += wheel;
-
   InputSystemHelper::DoMouseWheel( this, wheel);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::DoMouseButton(size_t btnIndex, bool isPressed)
 {
-  // reroute to primary mouse if we're in SingleDeviceMode
-  if( !mSystem->IsInMultiDeviceMode() && GetCount() != 0 )
-    return dynamic_cast<WinMouse*> (mSystem->GetMouseByCount( 0))->DoMouseButton( btnIndex, isPressed);
+  InputSystem::Log("Maus %zd, button %zd %s", mId, btnIndex, isPressed ? "gedrückt" : "losgelassen");
+  // also apply to primary mouse
+  if( !IsAssembled() )
+    dynamic_cast<WinMouse*>(mSystem->GetMouseByCount(0))->DoMouseButton(btnIndex, isPressed);
 
   // don't signal if it isn't an actual state change
   if (!!(mState.buttons & (1u << btnIndex)) == isPressed)
@@ -185,8 +174,8 @@ void WinMouse::SetFocus( bool pHasFocus)
 {
   if( pHasFocus )
   {
-    // get current mouse position when in SingleMouseMode
-    if( !mSystem->IsInMultiDeviceMode() )
+    // get current mouse position when we're the assembled mouse
+    if( IsAssembled() )
     {
       POINT point;
       GetCursorPos(&point);

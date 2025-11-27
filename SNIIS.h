@@ -215,16 +215,18 @@ protected:
   size_t mId;   ///< Device ID
   size_t mCount; ///< we're the n-th device of our specific kind
   bool mIsFirstUpdate; ///< true if the device is queried for the first time. First state does not trigger updates to evade devices with perm_on controls
-  bool mWasSortedOnActivity; ///< true if the device has been moved to the front after activity, false if activity is yet to be seen.
+  bool mIsAssembled; ///< true marks an abstract device that collects the system-wide state of all devices of this kind. Only mice and keyboard have one.
 
 public:
-  Device(size_t pId) : mId(pId), mCount( 0), mIsFirstUpdate( true), mWasSortedOnActivity( false) { }
+  Device(size_t pId, bool isAssembled) noexcept : mId(pId), mCount( 0), mIsFirstUpdate( true), mIsAssembled( isAssembled) { }
   virtual ~Device() { }
 
   /// ID
-  size_t GetId() const { return mId; }
+  size_t GetId() const noexcept { return mId; }
   /// Count - our index in the sequence of devices of our kind, zero-based. Like: we're the 0th mouse, or the 2nd controller
-  size_t GetCount() const { return mCount; }
+  size_t GetCount() const noexcept { return mCount; }
+  /// Returns true if this is an abstract device designed to collect all events of all devices of this kind.
+  bool IsAssembled() const noexcept { return mIsAssembled; }
 
   /// Query controls of that device
   virtual size_t GetNumButtons() const { return 0; }
@@ -247,7 +249,7 @@ public:
 class Mouse : public Device
 {
 public:
-  Mouse(size_t pId) : Device(pId) { }
+  Mouse(size_t pId, bool isAssembled) : Device(pId, isAssembled) { }
 
   virtual float GetMouseX() const { return 0; }
   virtual float GetMouseY() const { return 0; }
@@ -259,7 +261,7 @@ public:
 class Keyboard : public Device
 {
 public:
-  Keyboard(size_t pId) : Device(pId) { }
+  Keyboard(size_t pId, bool isAssembled) : Device(pId, isAssembled) { }
 
   virtual bool IsKeyDown(KeyCode key) const { return IsButtonDown(size_t(key)); }
   virtual bool WasKeyReleased(KeyCode key) const { return WasButtonReleased(size_t(key)); }
@@ -270,7 +272,7 @@ public:
 class Joystick : public Device
 {
 public:
-  Joystick(size_t pId) : Device(pId) { }
+  Joystick(size_t pId) : Device(pId, false) { }
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -386,17 +388,6 @@ public:
   /// Returns if the input system is acting as if it's focused. Strange wording, I know, but it's set from the outside only.
   bool HasFocus() const { return mHasFocus; }
 
-  /// Enables or disables multi-device mode. In Single mode all mice draw their state from the global OS state and thus
-  /// match the expected movement exactly. Also all keyboards and mice will reroute their events to the primary device
-  /// to match the user's expectation. In Multi Device Mode, some local API is used instead which usually lacks any Mouse 
-  /// speed and acceleration setting, therefore the mouse might move differently than what the user expects.
-  /// Also, there's usually a whole bunch of strange HIDs showing up in the enumeration and some of those behave weirdly,
-  /// so exactly determining which device is under the user's hand is difficult at times.
-  /// Default: disabled
-  void SetMultiDeviceMode( bool enabled);
-  /// Returns whether MultiMouseMode is currently enabled.
-  bool IsInMultiDeviceMode() const { return mIsInMultiMouseMode; }
-
   /// Enables or disables Mouse Grabbing. If not grabbed, the mouse can leave the window or maybe activate things 
   /// in the background on Linux. This also activates the per-frame center code which keeps the mouse in the middle of
   /// the window. This is necessary to get correct relative mouse movements in SingleMouseMode because the mouse would
@@ -462,20 +453,19 @@ public:
   /// Clears all channel assignments, both digital and analog
   void ClearChannelAssignments();
 
+  static void Log(const char* msg, ...) noexcept;
+
 protected:
   virtual void InternSetFocus( bool pHasFocus) = 0;
   void InternGrabMouseIfNecessary();
   virtual void InternSetMouseGrab( bool enabled) = 0;
-  void Log(const char* msg, ...);
 
 protected:
   std::vector<Device*> mDevices;
   Mouse* mFirstMouse; Keyboard* mFirstKeyboard; Joystick* mFirstJoystick;
   size_t mNumMice, mNumKeyboards, mNumJoysticks;
-  bool mReorderMiceOnActivity, mReorderKeyboardsOnActivity;
   InputHandler* mHandler;
   bool mHasFocus;
-  bool mIsInMultiMouseMode;
   bool mIsMouseGrabEnabled, mIsMouseGrabbed;
 
   KeyRepeatCfg mKeyRepeatCfg;

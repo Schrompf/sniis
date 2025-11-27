@@ -26,10 +26,8 @@ InputSystem::InputSystem()
 
   mFirstMouse = nullptr; mFirstKeyboard = nullptr; mFirstJoystick = nullptr;
   mNumMice = mNumKeyboards = mNumJoysticks = 0;
-  mReorderMiceOnActivity = mReorderKeyboardsOnActivity = true;
   mHandler = nullptr;
   mHasFocus = true;
-  mIsInMultiMouseMode = false;
   mIsMouseGrabEnabled = mIsMouseGrabbed = false;
 
   mKeyRepeatState.lasttick = clock();
@@ -85,17 +83,6 @@ void InputSystem::SetFocus( bool pHasFocus)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Enables or disables multi-mice mode.
-void InputSystem::SetMultiDeviceMode( bool enabled)
-{
-  if( enabled == mIsInMultiMouseMode )
-    return;
-  Log("SNIIS: %s multi mouse mode", enabled ? "enabled" : "disabled");
-  mIsInMultiMouseMode = enabled;
-  InternGrabMouseIfNecessary();
-}
-
-// --------------------------------------------------------------------------------------------------------------------
 // Enables or disables Mouse Grabbing.
 void InputSystem::SetMouseGrab( bool enabled)
 {
@@ -109,7 +96,7 @@ void InputSystem::SetMouseGrab( bool enabled)
 // --------------------------------------------------------------------------------------------------------------------
 void InputSystem::InternGrabMouseIfNecessary()
 {
-  bool necessary = mIsMouseGrabEnabled && mHasFocus && !mIsInMultiMouseMode;
+  bool necessary = mIsMouseGrabEnabled && mHasFocus;
   if( necessary == mIsMouseGrabbed )
     return;
   Log("SNIIS: %s mouse", necessary ? "grabbing" : "releasing");
@@ -121,43 +108,40 @@ void InputSystem::InternGrabMouseIfNecessary()
 // Gets the nth device of that specific kind
 Mouse* InputSystem::GetMouseByCount(size_t pNumber) const
 {
+  if( !pNumber )
+    return mFirstMouse;
+
   for( auto d : mDevices )
-  {
     if( auto m = dynamic_cast<Mouse*> (d) )
-    {
-      if( pNumber == 0 )
+      if( pNumber-- == 0 )
         return m;
-      --pNumber;
-    }
-  }
+
   return nullptr;
 }
 // --------------------------------------------------------------------------------------------------------------------
 Keyboard* InputSystem::GetKeyboardByCount(size_t pNumber) const
 {
+  if( !pNumber )
+    return mFirstKeyboard;
+
   for( auto d : mDevices )
-  {
     if( auto k = dynamic_cast<Keyboard*> (d) )
-    {
-      if( pNumber == 0 )
+      if( pNumber-- == 0 )
         return k;
-      --pNumber;
-    }
-  }
+
   return nullptr;
 }
 // --------------------------------------------------------------------------------------------------------------------
 Joystick* InputSystem::GetJoystickByCount(size_t pNumber) const
 {
+  if( !pNumber )
+    return mFirstJoystick;
+
   for( auto d : mDevices )
-  {
     if( auto j = dynamic_cast<Joystick*> (d) )
-    {
-      if( pNumber == 0 )
+      if( pNumber-- == 0 )
         return j;
-      --pNumber;
-    }
-  }
+
   return nullptr;
 }
 
@@ -231,7 +215,7 @@ void InputSystem::ClearChannelAssignments()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystem::Log(const char* msg, ...)
+void InputSystem::Log(const char* msg, ...) noexcept
 {
   if( !gLogCallback )
     return;
@@ -580,72 +564,4 @@ void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float v
       return;
 
   UpdateChannels( sender, axisIndex, true);
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::SortThisMouseToFront( Mouse* mouse)
-{
-  if( !mouse->mWasSortedOnActivity )
-  {
-    mouse->mWasSortedOnActivity = true;
-    // find the first mouse in sequence which has not yet shown activity.
-    Device* frontmouse = nullptr;
-    for( size_t c = 0; c < mouse->GetCount() && !frontmouse; ++c )
-      if( gInstance->GetMouseByCount( c)->mWasSortedOnActivity == false )
-        frontmouse = gInstance->GetMouseByCount( c);
-
-    // if we found a (yet) silent mouse in front of our active mouse, swap the two
-    if( frontmouse )
-    {
-      gInstance->Log( "Swap mice due to activity: %d,%d and %d,%d", mouse->mId, mouse->mCount, frontmouse->mId, frontmouse->mCount);
-
-      std::swap( mouse->mId, frontmouse->mId);
-      std::swap( mouse->mCount, frontmouse->mCount);
-      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (frontmouse));
-      auto mit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (mouse));
-      assert( fit != gInstance->mDevices.end() && mit != gInstance->mDevices.end());
-      std::swap( *fit, *mit);
-
-      // if the new front mouse is the primary mouse now, also store it like this
-      if( mouse->GetCount() == 0 )
-        gInstance->mFirstMouse = dynamic_cast<Mouse*> (mouse);
-      assert( gInstance->mFirstMouse != nullptr );
-
-      // all channel mappings should adapt automatically
-    }
-  }
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::SortThisKeyboardToFront( Keyboard* keyboard)
-{
-  if( !keyboard->mWasSortedOnActivity )
-  {
-    keyboard->mWasSortedOnActivity = true;
-    // find the first keyboard in sequence which has not yet shown activity.
-    Device* frontkeyboard = nullptr;
-    for( size_t c = 0; c < keyboard->GetCount() && !frontkeyboard; ++c )
-      if( gInstance->GetKeyboardByCount( c)->mWasSortedOnActivity == false )
-        frontkeyboard = gInstance->GetKeyboardByCount( c);
-
-    // if we found a (yet) silent keyboard in front of our active mouse, swap the two
-    if( frontkeyboard )
-    {
-      gInstance->Log( "Swap keyboards due to activity: %d,%d and %d,%d", keyboard->mId, keyboard->mCount, frontkeyboard->mId, frontkeyboard->mCount);
-
-      std::swap( keyboard->mId, frontkeyboard->mId);
-      std::swap( keyboard->mCount, frontkeyboard->mCount);
-      auto fit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (frontkeyboard));
-      auto kit = std::find( gInstance->mDevices.begin(), gInstance->mDevices.end(), static_cast<Device*> (keyboard));
-      assert( fit != gInstance->mDevices.end() && kit != gInstance->mDevices.end());
-      std::swap( *fit, *kit);
-
-      // if the new front keyboard is the primary keyboard now, also store it like this
-      if( keyboard->GetCount() == 0 )
-        gInstance->mFirstKeyboard = dynamic_cast<Keyboard*> (keyboard);
-      assert( gInstance->mFirstKeyboard != nullptr );
-
-      // all channel mappings should adapt automatically
-    }
-  }
 }

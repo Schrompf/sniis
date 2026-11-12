@@ -50,8 +50,9 @@ void WinMouse::StartUpdate()
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
 {
-  // not a mouse or not our mouse - just a safety, such a message shouldn't even reach us
-  assert( e.header.dwType == RIM_TYPEMOUSE && e.header.hDevice == mHandle );
+  assert( e.header.dwType == RIM_TYPEMOUSE );
+  assert( e.header.hDevice == mHandle ||
+    (e.header.hDevice == nullptr && !mSystem->IsInMultiDeviceMode() && GetCount() == 0) );
   // work around for GetRawInputBuffer() bug on WoW64
   auto ptr = reinterpret_cast<const uint8_t*> (&e.data.mouse);
   if( useWorkaround )

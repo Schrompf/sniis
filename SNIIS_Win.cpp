@@ -102,13 +102,33 @@ void WinInput::EnumerateDevices()
   {
     const RAWINPUTDEVICELIST& dev = devices[a];
 
-    std::string name( 256, 0);
-    uint32_t nameSize = (uint32_t) name.size();
-    erg = GetRawInputDeviceInfo( dev.hDevice, RIDI_DEVICENAME, &name[0], &nameSize);
+    UINT nameSize = 0;
+    std::string name;
+    if( GetRawInputDeviceInfoA( dev.hDevice, RIDI_DEVICENAME, nullptr, &nameSize) == UINT32_MAX )
+      Log( "TrackpadDiag: device name size failed handle=%p error=%lu", dev.hDevice, GetLastError());
+    else if( nameSize != 0 )
+    {
+      name.resize( size_t(nameSize) + 1, 0);
+      if( GetRawInputDeviceInfoA( dev.hDevice, RIDI_DEVICENAME, &name[0], &nameSize) == UINT32_MAX )
+        Log( "TrackpadDiag: device name failed handle=%p error=%lu", dev.hDevice, GetLastError());
+    }
 
-    RID_DEVICE_INFO info;
-    uint32_t infoSize = sizeof( RID_DEVICE_INFO);
-    erg = GetRawInputDeviceInfo( dev.hDevice, RIDI_DEVICEINFO, &info, &infoSize);
+    Log( "TrackpadDiag: device handle=%p type=%lu name=\"%s\" rdpFiltered=%d",
+      dev.hDevice, dev.dwType, name.c_str(), name.find( "RDP_") != std::string::npos);
+
+    RID_DEVICE_INFO info = {};
+    info.cbSize = sizeof( info);
+    UINT infoSize = sizeof( info);
+    if( GetRawInputDeviceInfoA( dev.hDevice, RIDI_DEVICEINFO, &info, &infoSize) == UINT32_MAX )
+      Log( "TrackpadDiag: device info failed handle=%p error=%lu", dev.hDevice, GetLastError());
+    else if( info.dwType == RIM_TYPEMOUSE )
+      Log( "TrackpadDiag: mouse handle=%p id=%lu buttons=%lu sampleRate=%lu horizontalWheel=%d",
+        dev.hDevice, info.mouse.dwId, info.mouse.dwNumberOfButtons, info.mouse.dwSampleRate,
+        info.mouse.fHasHorizontalWheel);
+    else if( info.dwType == RIM_TYPEHID )
+      Log( "TrackpadDiag: HID handle=%p vid=0x%04lX pid=0x%04lX version=%lu usagePage=0x%04X usage=0x%04X (not handled as mouse)",
+        dev.hDevice, info.hid.dwVendorId, info.hid.dwProductId, info.hid.dwVersionNumber,
+        unsigned(info.hid.usUsagePage), unsigned(info.hid.usUsage));
 
     switch( dev.dwType )
     {
@@ -120,9 +140,10 @@ void WinInput::EnumerateDevices()
             auto m = new WinMouse( this, mDevices.size(), dev.hDevice);
             InputSystemHelper::AddDevice( m);
             mMice[dev.hDevice] = m;
-          } catch( std::exception& )
+            Log( "TrackpadDiag: registered mouse handle=%p id=%zu count=%zu", dev.hDevice, m->GetId(), m->GetCount());
+          } catch( std::exception& e)
           {
-            // TODO: invent logging
+            Log( "TrackpadDiag: mouse creation failed handle=%p: %s", dev.hDevice, e.what());
           }
         }
         break;
@@ -134,9 +155,10 @@ void WinInput::EnumerateDevices()
             auto k = new WinKeyboard( this, mDevices.size(), dev.hDevice, mKeyboard);
             InputSystemHelper::AddDevice( k);
             mKeyboards[dev.hDevice] = k;
-          } catch( std::exception& )
+            Log( "TrackpadDiag: registered keyboard handle=%p id=%zu count=%zu", dev.hDevice, k->GetId(), k->GetCount());
+          } catch( std::exception& e)
           {
-            // TODO: invent logging
+            Log( "TrackpadDiag: keyboard creation failed handle=%p: %s", dev.hDevice, e.what());
           }
         }
         break;
@@ -294,7 +316,28 @@ void WinInput::RegisterForRawInput()
   ids[2].dwFlags = 0;
 
   if( !RegisterRawInputDevices( &ids[0], 3, sizeof( RAWINPUTDEVICE)) )
+  {
+    Log( "TrackpadDiag: raw input registration failed error=%lu", GetLastError());
     throw std::runtime_error( "failed to register for input messages");
+  }
+  Log( "TrackpadDiag: registered raw input page=1 usages=6,7,2 flags=0 target=NULL pointerBits=%zu wow64Workaround=%d multi=%d mice=%zu",
+    sizeof(void*) * 8, mIsWorkAroundEnabled, IsInMultiDeviceMode(), GetNumMice());
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinInput::ParseMouseMessage( const RAWINPUT& input, bool useWorkaround)
+{
+  assert( input.header.dwType == RIM_TYPEMOUSE );
+  auto it = mMice.find( input.header.hDevice);
+  if( it != mMice.end() )
+    it->second->ParseMessage( input, useWorkaround);
+  else if( input.header.hDevice == nullptr && !IsInMultiDeviceMode() && GetNumMice() != 0 )
+  {
+    // Windows can emit trackpad mouse packets without an identifiable raw-input device.
+    auto mouse = dynamic_cast<WinMouse*> (GetMouseByCount(0));
+    assert( mouse != nullptr );
+    mouse->ParseMessage( input, useWorkaround);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -323,6 +366,11 @@ void WinInput::Update()
     RAWINPUT* rib = (RAWINPUT*) (&buf[0] + ((16 - (size_t(&buf[0]) & 15)) & 15));
     uint32_t size = sizeof( buf) - 16;
     auto num = GetRawInputBuffer( rib, &size, sizeof( RAWINPUTHEADER));
+    if( num == UINT32_MAX )
+    {
+      Log( "TrackpadDiag: GetRawInputBuffer failed error=%lu requiredBytes=%u", GetLastError(), size);
+      break;
+    }
     if( num == 0 )
       break;
     for( uint32_t a = 0; a < num; ++a )
@@ -334,11 +382,7 @@ void WinInput::Update()
           it->second->ParseMessage( *rib, mIsWorkAroundEnabled);
       }
       else if( rib->header.dwType == RIM_TYPEMOUSE )
-      {
-        auto it = mMice.find( rib->header.hDevice);
-        if( it != mMice.end() )
-          it->second->ParseMessage( *rib, mIsWorkAroundEnabled);
-      }
+        ParseMouseMessage( *rib, mIsWorkAroundEnabled);
 
       rib = NEXTRAWINPUTBLOCK( rib);
     }
@@ -396,8 +440,8 @@ LRESULT CALLBACK WinInput::WndProcHook( HWND hwnd, UINT msg, WPARAM wparam, LPAR
   {
     uint8_t buf[256];
     UINT sz = sizeof( buf);
-    sz = GetRawInputData( (HRAWINPUT) lparam, RID_INPUT, buf, &sz, sizeof( RAWINPUTHEADER));
-    if( sz != std::numeric_limits<decltype(sz)>::max() )
+    const UINT result = GetRawInputData( (HRAWINPUT) lparam, RID_INPUT, buf, &sz, sizeof( RAWINPUTHEADER));
+    if( result != UINT32_MAX )
     {
       auto inp = reinterpret_cast<const RAWINPUT*> (&buf[0]);
       if( inp->header.dwType == RIM_TYPEKEYBOARD )
@@ -407,16 +451,35 @@ LRESULT CALLBACK WinInput::WndProcHook( HWND hwnd, UINT msg, WPARAM wparam, LPAR
           it->second->ParseMessage( *inp, false);
       }
       else if( inp->header.dwType == RIM_TYPEMOUSE )
-      {
-        auto it = that->mMice.find( inp->header.hDevice);
-        if( it != that->mMice.end() )
-          it->second->ParseMessage( *inp, false);
-      }
+        that->ParseMouseMessage( *inp, false);
     }
+    else
+      that->Log( "TrackpadDiag: GetRawInputData failed error=%lu requiredBytes=%u", GetLastError(), sz);
     return 0;
   }
   else
   {
+    const char* buttonMessage = nullptr;
+    switch( msg )
+    {
+      case WM_LBUTTONDOWN: buttonMessage = "WM_LBUTTONDOWN"; break;
+      case WM_LBUTTONUP: buttonMessage = "WM_LBUTTONUP"; break;
+      case WM_LBUTTONDBLCLK: buttonMessage = "WM_LBUTTONDBLCLK"; break;
+      case WM_RBUTTONDOWN: buttonMessage = "WM_RBUTTONDOWN"; break;
+      case WM_RBUTTONUP: buttonMessage = "WM_RBUTTONUP"; break;
+      case WM_RBUTTONDBLCLK: buttonMessage = "WM_RBUTTONDBLCLK"; break;
+      case WM_MBUTTONDOWN: buttonMessage = "WM_MBUTTONDOWN"; break;
+      case WM_MBUTTONUP: buttonMessage = "WM_MBUTTONUP"; break;
+      case WM_MBUTTONDBLCLK: buttonMessage = "WM_MBUTTONDBLCLK"; break;
+      case WM_XBUTTONDOWN: buttonMessage = "WM_XBUTTONDOWN"; break;
+      case WM_XBUTTONUP: buttonMessage = "WM_XBUTTONUP"; break;
+      case WM_XBUTTONDBLCLK: buttonMessage = "WM_XBUTTONDBLCLK"; break;
+    }
+    if( buttonMessage )
+      that->Log( "TrackpadDiag: t=%lu legacy=%s keys=0x%04X xbutton=%u x=%d y=%d extra=0x%zX multi=%d focus=%d mice=%zu",
+        GetTickCount(), buttonMessage, unsigned(LOWORD(wparam)), unsigned(HIWORD(wparam)),
+        int(short(LOWORD(lparam))), int(short(HIWORD(lparam))), size_t(GetMessageExtraInfo()),
+        that->IsInMultiDeviceMode(), that->HasFocus(), that->GetNumMice());
     return CallWindowProcW( (WNDPROC) that->mPreviousWndProc, hwnd, msg, wparam, lparam);
   }
 }

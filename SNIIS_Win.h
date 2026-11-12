@@ -55,6 +55,7 @@ public:
   static int CALLBACK _DIEnumDevCallback(LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef);
   void CheckXInputDevices();
   void RegisterForRawInput();
+  void ParseMouseMessage( const RAWINPUT& input, bool useWorkaround);
 
   void Update() override;
 

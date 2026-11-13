@@ -71,6 +71,12 @@ WinInput::WinInput(HWND wnd)
   auto defKeyboard = new WinKeyboard{this, mDevices.size(), nullptr, mKeyboard};
   InputSystemHelper::AddDevice(defKeyboard);
 
+  // Raw input without a device identity belongs only to the assembled device.
+  mMice[nullptr] = defMouse;
+  mKeyboards[nullptr] = defKeyboard;
+  mAssembledMouse = defMouse;
+  mAssembledKeyboard = defKeyboard;
+
   EnumerateDevices();
   CheckXInputDevices();
   RegisterForRawInput();
@@ -313,6 +319,12 @@ void WinInput::Update()
       joy->StartUpdate();
   }
 
+  // wheel resets are broadcast after all mice have been reset, so the assembled wheel is already consistent
+  for( auto d : mDevices ) {
+    if( auto mouse = dynamic_cast<WinMouse*>(d) )
+      mouse->SendWheelReset();
+  }
+
   // read raw input
   while( true ) {
     uint8_t buf[800];
@@ -345,6 +357,24 @@ void WinInput::Update()
     // from now on everything generates signals
     d->ResetFirstUpdateFlag();
   }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+bool WinInput::IsButtonDownOnPhysicalMouse(size_t btnIndex) const
+{
+  for( const auto& m : mMice )
+    if( m.second != mAssembledMouse && m.second->IsButtonDown(btnIndex) )
+      return true;
+  return false;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+bool WinInput::IsKeyDownOnPhysicalKeyboard(size_t kc) const
+{
+  for( const auto& k : mKeyboards )
+    if( k.second != mAssembledKeyboard && k.second->IsButtonDown(kc) )
+      return true;
+  return false;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

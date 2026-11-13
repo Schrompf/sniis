@@ -340,6 +340,10 @@ struct AnalogChannel
 /// Mouse wheel: OnMouseWheel() -> OnAnalogEvent() -> OnAnalogChannel()
 /// Controller button: OnJoystickButton() -> OnDigitalEvent() -> OnDigitalChannel()
 /// Controller stick/pad: OnJoystickAxis() -> OnAnalogEvent() -> OnAnalogChannel()
+/// Windows: every key press, mouse button or wheel step is reported exactly once, with the physical device as sender.
+/// Only input without a device identity (e.g. some trackpad clicks) is reported with the assembled device as sender.
+/// OnMouseMoved() is only reported for the assembled mouse, i.e. the system pointer. The assembled devices' state is the
+/// combination of all devices, and channels mapped to either the physical or the assembled device are updated.
 class InputHandler
 {
 public:
@@ -392,8 +396,7 @@ public:
   /// in the background on Linux. This also activates the per-frame center code which keeps the mouse in the middle of
   /// the window. This is necessary to get correct relative mouse movements in SingleMouseMode because the mouse would
   /// otherwise hit the screen border and would therefore stop reporting further relative movements.
-  /// Mouse grabbing is automatically disabled when 1) Focus is lost or 2) MultiMouseMode is enabled; and is reenabled
-  /// automatically in those cases.
+  /// Mouse grabbing is automatically disabled when focus is lost, and is reenabled automatically when focus returns.
   void SetMouseGrab( bool enabled);
   /// Returns if MouseGrabMode is currently enabled. This does NOT imply that the mouse is actually grabbed.
   bool IsMouseGrabEnabled() const { return mIsMouseGrabEnabled; }

@@ -13,6 +13,7 @@ WinKeyboard::WinKeyboard( WinInput* pSystem, size_t pId, HANDLE pHandle, IDirect
 {
   memset( mState, 0, sizeof( mState));
   memset( mPrevState, 0, sizeof( mPrevState));
+  memset( mDirectState, 0, sizeof( mDirectState));
   deadKey = 0;
 }
 
@@ -124,20 +125,41 @@ void WinKeyboard::SetFocus( bool pHasFocus)
 // --------------------------------------------------------------------------------------------------------------------
 void WinKeyboard::DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed)
 {
-  // also apply to primary keyboard
-  if( !IsAssembled() )
-    dynamic_cast<WinKeyboard *> (mSystem->GetKeyboardByCount( 0))->DoKeyboardButton( kc, unicode, isPressed);
-
   // small issue prevention: some additional keyboard might have buttons that this keyboard doesn't
   if( kc >= NumKeys )
     return;
+
+  if( IsAssembled() )
+  {
+    // key event without a device identity: combine with all physical keyboards
+    if( IsBitSet( mDirectState, kc) == isPressed )
+      return;
+    SetBit( mDirectState, kc, isPressed);
+    if( UpdateAssembledKey( kc) )
+      InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
+    return;
+  }
 
   // don't signal if it isn't an actual state change
   if( IsSet(kc) == isPressed )
     return;
   Set( kc, isPressed);
 
-  InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed);
+  // notify once. Channels on the assembled keyboard are updated if its combined state changed.
+  auto assembled = mSystem->GetAssembledKeyboard();
+  bool assembledChanged = assembled->UpdateAssembledKey( kc);
+  InputSystemHelper::DoKeyboardButton( this, kc, unicode, isPressed, assembledChanged ? assembled : nullptr);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+bool WinKeyboard::UpdateAssembledKey( size_t kc)
+{
+  assert( IsAssembled() );
+  bool isPressed = IsBitSet( mDirectState, kc) || mSystem->IsKeyDownOnPhysicalKeyboard( kc);
+  if( IsSet( kc) == isPressed )
+    return false;
+  Set( kc, isPressed);
+  return true;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -194,16 +216,24 @@ size_t WinKeyboard::TranslateText( uint32_t kc)
 	return 0;
 }
 
-void WinKeyboard::Set( size_t kc, bool set)
+void WinKeyboard::SetBit( uint64_t* state, size_t kc, bool set)
 {
   if( set )
-    mState[kc/64] |= (1ull << (kc&63));
+    state[kc/64] |= (1ull << (kc&63));
   else
-    mState[kc/64] &= UINT64_MAX ^ (1ull << (kc&63));
+    state[kc/64] &= UINT64_MAX ^ (1ull << (kc&63));
+}
+bool WinKeyboard::IsBitSet( const uint64_t* state, size_t kc)
+{
+  return (state[kc/64] & (1ull << (kc&63))) != 0;
+}
+void WinKeyboard::Set( size_t kc, bool set)
+{
+  SetBit( mState, kc, set);
 }
 bool WinKeyboard::IsSet( size_t kc) const
 {
-  return (mState[kc/64] & (1ull << (kc&63))) != 0;
+  return IsBitSet( mState, kc);
 }
 bool WinKeyboard::WasSet( size_t kc) const
 {

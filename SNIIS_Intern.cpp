@@ -377,13 +377,13 @@ void InputSystemHelper::AddDevice( Device* dev)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed)
+void InputSystemHelper::DoMouseButton( Mouse* sender, size_t btnIndex, bool isPressed, Device* assembled)
 {
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseButton( sender, btnIndex, isPressed) )
       return;
 
-  DoDigitalEvent( sender, btnIndex, isPressed);
+  DoDigitalEvent( sender, btnIndex, isPressed, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -400,16 +400,16 @@ void InputSystemHelper::DoMouseMove( Mouse* sender, float absx, float absy, floa
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff)
+void InputSystemHelper::DoMouseWheel( Mouse* sender, float diff, Device* assembled)
 {
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnMouseWheel( sender, diff) )
       return;
-  DoAnalogEvent( sender, 2, diff);
+  DoAnalogEvent( sender, 2, diff, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
+void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed, Device* assembled)
 {
   // store for key repetition
   if( isPressed && gInstance->mKeyRepeatCfg.enable )
@@ -428,11 +428,11 @@ void InputSystemHelper::DoKeyboardButton( Keyboard* sender, KeyCode kc, size_t u
   }
 
   // and execute
-  DoKeyboardButtonIntern( sender, kc, unicode, isPressed);
+  DoKeyboardButtonIntern( sender, kc, unicode, isPressed, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed)
+void InputSystemHelper::DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, size_t unicode, bool isPressed, Device* assembled)
 {
   if( gInstance->mHandler )
   {
@@ -442,7 +442,7 @@ void InputSystemHelper::DoKeyboardButtonIntern( Keyboard* sender, KeyCode kc, si
       return;
   }
 
-  DoDigitalEvent( sender, (size_t) kc, isPressed);
+  DoDigitalEvent( sender, (size_t) kc, isPressed, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -466,14 +466,17 @@ void InputSystemHelper::DoJoystickButton( Joystick* sender, size_t btnIndex, boo
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool isAnalog)
+void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool isAnalog, Device* assembled)
 {
+  // each channel is re-evaluated at most once, even if it uses both the sender and the assembled device as sources
+  auto isAffected = [=](size_t deviceId) { return deviceId == sender->GetId() || (assembled && deviceId == assembled->GetId()); };
+
   // update digital channels using this as a source
   for( auto& ch : gInstance->mDigitalChannels )
   {
     auto& dch = ch.second;
     auto it = std::find_if( dch.mSources.begin(), dch.mSources.end(),
-      [=](const DigitalChannel::Source& s) { return s.mDeviceId == sender->GetId() && s.mControlId == ctrlIndex && s.mIsAnalog == isAnalog; });
+      [=](const DigitalChannel::Source& s) { return isAffected( s.mDeviceId) && s.mControlId == ctrlIndex && s.mIsAnalog == isAnalog; });
 
     if( it != dch.mSources.end() )
     {
@@ -507,7 +510,7 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
     // style guides, take cover. It's getting ugly.
     auto& ach = ch.second;
     auto it = std::find_if( ach.mSources.begin(), ach.mSources.end(),
-      [=](const AnalogChannel::Source& s) { return s.mDeviceId == sender->GetId() && s.mControlId == ctrlIndex
+      [=](const AnalogChannel::Source& s) { return isAffected( s.mDeviceId) && s.mControlId == ctrlIndex
           && ((isAnalog && (s.mType == AnalogChannel::Source_Analog || s.mType == AnalogChannel::Source_LimitedAnalog))
               || (!isAnalog && s.mType == AnalogChannel::Source_Digital)); });
 
@@ -547,21 +550,21 @@ void InputSystemHelper::UpdateChannels( Device* sender, size_t ctrlIndex, bool i
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed)
+void InputSystemHelper::DoDigitalEvent( Device* sender, size_t btnIndex, bool isPressed, Device* assembled)
 {
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnDigitalEvent( sender, btnIndex, isPressed) )
       return;
 
-  UpdateChannels( sender, btnIndex, false);
+  UpdateChannels( sender, btnIndex, false, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float value)
+void InputSystemHelper::DoAnalogEvent( Device* sender, size_t axisIndex, float value, Device* assembled)
 {
   if( gInstance->mHandler )
     if( gInstance->mHandler->OnAnalogEvent( sender, axisIndex, value) )
       return;
 
-  UpdateChannels( sender, axisIndex, true);
+  UpdateChannels( sender, axisIndex, true, assembled);
 }

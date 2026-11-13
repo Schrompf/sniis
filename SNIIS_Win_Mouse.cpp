@@ -17,6 +17,8 @@ WinMouse::WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle)
   mState.buttons = mState.prevButtons = 0;
   mIsInUpdate = false;
   mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
+  mDirectButtons = 0;
+  mHasDirectWheel = mHasPendingWheelReset = false;
 
   // read initial position
   POINT point;
@@ -37,14 +39,29 @@ void WinMouse::StartUpdate()
   // except for the buttons and wheel, because that is calculated and broadcasted immediatly
   mState.prevButtons = mState.buttons;
   mState.prevWheel = mState.wheel; mState.wheel = 0;
-  // that plops back the wheel to zero. Broadcast this as well
-  if( mState.prevWheel != 0 )
-    DoMouseWheel( 0.0f);
+  // that plops back the wheel to zero. Broadcast this as well, but only after all mice did their StartUpdate().
+  // The assembled mouse only broadcasts its own reset for wheel events which came without a device identity.
+  mHasPendingWheelReset = IsAssembled() ? mHasDirectWheel : (mState.prevWheel != 0);
+  mHasDirectWheel = false;
 
   // take over the OutOfUpdate differences
   mState.relX = mOutOfUpdateRelX; mState.relY = mOutOfUpdateRelY;
   mOutOfUpdateRelX = mOutOfUpdateRelY = 0;
   mIsInUpdate = true;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+void WinMouse::SendWheelReset()
+{
+  if( !mHasPendingWheelReset )
+    return;
+  mHasPendingWheelReset = false;
+
+  // update the assembled channels along with ours, unless the assembled mouse broadcasts its own reset
+  WinMouse* assembled = IsAssembled() ? nullptr : mSystem->GetAssembledMouse();
+  if( assembled && assembled->mHasPendingWheelReset )
+    assembled = nullptr;
+  InputSystemHelper::DoMouseWheel( this, 0.0f, assembled);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -73,6 +90,10 @@ void WinMouse::ParseMessage( const RAWINPUT& e, bool useWorkaround)
   // Mouse wheel
   if( mouse.usButtonFlags & RI_MOUSE_WHEEL )
     DoMouseWheel( float( short( mouse.usButtonData)));
+
+  // The assembled mouse gets its movement from the Windows cursor in EndUpdate().
+  if( IsAssembled() )
+    return;
 
   // Movement
   float& relx = mIsInUpdate ? mState.relX : mOutOfUpdateRelX;
@@ -132,41 +153,83 @@ void WinMouse::EndUpdate()
     }
   }
 
-  // send the mouse move
-  if( mState.relX != 0 || mState.relY != 0 )
-    InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+  // send the mouse move. Only the assembled mouse notifies handlers, because it represents the actual pointer.
+  // Physical mice only update channels; their individual movement can be polled or mapped to channels.
+  if( IsAssembled() )
+  {
+    if( mState.relX != 0 || mState.relY != 0 )
+      InputSystemHelper::DoMouseMove( this, mState.absX, mState.absY, mState.relX, mState.relY);
+  }
+  else
+  {
+    if( mState.relX != 0 )
+      InputSystemHelper::UpdateChannels( this, 0, true);
+    if( mState.relY != 0 )
+      InputSystemHelper::UpdateChannels( this, 1, true);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::DoMouseWheel( float wheel)
 {
-  // also apply to primary mouse 
-  if( !IsAssembled() )
-    dynamic_cast<WinMouse*> (mSystem->GetMouseByCount(0))->DoMouseWheel( wheel);
-
-  // store change
   mState.wheel += wheel;
-  InputSystemHelper::DoMouseWheel( this, wheel);
+
+  if( IsAssembled() )
+  {
+    // wheel event without a device identity
+    mHasDirectWheel = true;
+    InputSystemHelper::DoMouseWheel( this, wheel);
+    return;
+  }
+
+  // the assembled mouse also collects it, but the event is only sent once with the physical mouse as sender
+  auto assembled = mSystem->GetAssembledMouse();
+  assembled->mState.wheel += wheel;
+  InputSystemHelper::DoMouseWheel( this, wheel, assembled);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+bool WinMouse::UpdateAssembledButton( size_t btnIndex)
+{
+  assert( IsAssembled() );
+  uint32_t bitmask = (1u << btnIndex);
+  bool isPressed = (mDirectButtons & bitmask) != 0 || mSystem->IsButtonDownOnPhysicalMouse( btnIndex);
+  if( !!(mState.buttons & bitmask) == isPressed )
+    return false;
+  mState.buttons = (mState.buttons & ~bitmask) | (isPressed ? bitmask : 0);
+  return true;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void WinMouse::DoMouseButton(size_t btnIndex, bool isPressed)
 {
   InputSystem::Log("Maus %zd, button %zd %s", mId, btnIndex, isPressed ? "gedrückt" : "losgelassen");
-  // also apply to primary mouse
-  if( !IsAssembled() )
-    dynamic_cast<WinMouse*>(mSystem->GetMouseByCount(0))->DoMouseButton(btnIndex, isPressed);
+  if( btnIndex >= 32 )
+    return;
+  uint32_t bitmask = (1u << btnIndex);
+
+  if( IsAssembled() )
+  {
+    // button event without a device identity: combine with all physical mice
+    if( !!(mDirectButtons & bitmask) == isPressed )
+      return;
+    mDirectButtons = (mDirectButtons & ~bitmask) | (isPressed ? bitmask : 0);
+    if( UpdateAssembledButton( btnIndex) )
+      InputSystemHelper::DoMouseButton( this, btnIndex, isPressed);
+    return;
+  }
 
   // don't signal if it isn't an actual state change
-  if (!!(mState.buttons & (1u << btnIndex)) == isPressed)
+  if (!!(mState.buttons & bitmask) == isPressed)
     return;
 
   // store state change
-  uint32_t bitmask = (1 << btnIndex);
   mState.buttons = (mState.buttons & ~bitmask) | (isPressed ? bitmask : 0);
 
-  // and notify everyone interested
-  InputSystemHelper::DoMouseButton(this, btnIndex, isPressed);
+  // and notify everyone interested, once. Channels on the assembled mouse are updated if its combined state changed.
+  auto assembled = mSystem->GetAssembledMouse();
+  bool assembledChanged = assembled->UpdateAssembledButton( btnIndex);
+  InputSystemHelper::DoMouseButton(this, btnIndex, isPressed, assembledChanged ? assembled : nullptr);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

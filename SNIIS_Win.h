@@ -41,9 +41,11 @@ class WinInput : public SNIIS::InputSystem
 	IDirectInput8* mDirectInput;
   IDirectInputDevice8* mKeyboard;
 
-  /// Devices associated with Handles, to map RawInput events to devices 
+  /// Devices associated with Handles, to map RawInput events to devices. The null handle maps to the assembled device.
   std::map<HANDLE, WinMouse*> mMice;
   std::map<HANDLE, WinKeyboard*> mKeyboards;
+  WinMouse* mAssembledMouse;
+  WinKeyboard* mAssembledKeyboard;
 
 public:
   /// Constructor
@@ -65,6 +67,12 @@ public:
 
   HWND GetWindowHandle() const { return hWnd; }
   bool IsWorkAroundEnabled() const { return mIsWorkAroundEnabled; }
+
+  WinMouse* GetAssembledMouse() const { return mAssembledMouse; }
+  WinKeyboard* GetAssembledKeyboard() const { return mAssembledKeyboard; }
+  /// true if any physical (non-assembled) device of that kind currently holds the given button/key
+  bool IsButtonDownOnPhysicalMouse( size_t btnIndex) const;
+  bool IsKeyDownOnPhysicalKeyboard( size_t kc) const;
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -81,11 +89,17 @@ class WinMouse : public SNIIS::Mouse
   } mState;
   bool mIsInUpdate;
   float mOutOfUpdateRelX, mOutOfUpdateRelY;
+  /// Assembled mouse only: buttons and wheel received without a device identity
+  uint32_t mDirectButtons;
+  bool mHasDirectWheel;
+  bool mHasPendingWheelReset;
 
 public:
   WinMouse( WinInput* pSystem, size_t pId, HANDLE pHandle);
 
   void StartUpdate();
+  /// broadcasts the wheel returning to zero; called after StartUpdate() of all devices
+  void SendWheelReset();
   void ParseMessage( const RAWINPUT& e, bool useWorkaround);
   void EndUpdate();
   void SetFocus(bool pHasFocus);
@@ -107,6 +121,8 @@ public:
 private:
   void DoMouseWheel( float wheel);
   void DoMouseButton( size_t btnIndex, bool isPressed);
+  /// Assembled mouse only: recombines a button from all sources, returns true if its state changed
+  bool UpdateAssembledButton( size_t btnIndex);
 };
 
 /// -------------------------------------------------------------------------------------------------------------------
@@ -118,6 +134,7 @@ class WinKeyboard : public SNIIS::Keyboard
   HANDLE mHandle;
 	IDirectInputDevice8* mKeyboard; ///< for retrieving the names of keys
 	uint64_t mState[NumKeys/64], mPrevState[NumKeys/64]; ///< current and previous keystate
+	uint64_t mDirectState[NumKeys/64]; ///< assembled keyboard only: keys received without a device identity
 	WCHAR deadKey; ///< Stored dead key from last translation
 
 public:
@@ -134,6 +151,10 @@ public:
   bool WasButtonReleased( size_t idx) const override;
 protected:
   void DoKeyboardButton( SNIIS::KeyCode kc, size_t unicode, bool isPressed);
+  /// Assembled keyboard only: recombines a key from all sources, returns true if its state changed
+  bool UpdateAssembledKey( size_t kc);
+  static void SetBit( uint64_t* state, size_t kc, bool set);
+  static bool IsBitSet( const uint64_t* state, size_t kc);
   void Set( size_t kc, bool set);
   bool IsSet( size_t kc) const;
   bool WasSet( size_t kc) const;
